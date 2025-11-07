@@ -1,0 +1,97 @@
+.container {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(135deg, #0f172a, #1f2937);
+	color: #fff;
+}
+
+.closeButton {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	background: transparent;
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 8px;
+	width: 36px;
+	height: 36px;
+	color: #fff;
+	cursor: pointer;
+}
+
+.content {
+	max-width: 640px;
+	width: 100%;
+	padding: 24px;
+}
+
+.successMessage {
+	background: rgba(255,255,255,0.06);
+	border: 1px solid rgba(255,255,255,0.12);
+	border-radius: 16px;
+	padding: 32px;
+	text-align: center;
+	backdrop-filter: blur(8px);
+}
+
+.checkmark {
+	margin: 0 auto 16px;
+}
+
+.checkmarkCircle {
+	width: 72px;
+	height: 72px;
+	border-radius: 50%;
+	background: rgba(16,185,129,0.2);
+	border: 2px solid rgba(16,185,129,0.5);
+	margin: 0 auto;
+	position: relative;
+}
+
+.checkmarkStem {
+	position: absolute;
+	width: 2px;
+	height: 24px;
+	background: #10b981;
+	left: 32px;
+	top: 18px;
+	transform: rotate(45deg);
+}
+
+.checkmarkKick {
+	position: absolute;
+	width: 2px;
+	height: 12px;
+	background: #10b981;
+	left: 24px;
+	top: 30px;
+	transform: rotate(-45deg);
+}
+
+.title {
+	font-size: 1.5rem;
+	font-weight: 800;
+	margin-top: 12px;
+	margin-bottom: 8px;
+}
+
+.subtitle {
+	opacity: 0.9;
+	margin-bottom: 20px;
+}
+
+.shareButton {
+	background: #1d4ed8;
+	border: none;
+	color: #fff;
+	padding: 10px 16px;
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.shareButton:hover {
+	background: #1e40af;
+}
+
+

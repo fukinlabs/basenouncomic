@@ -1,0 +1,21 @@
+{
+  "version": "1",
+  "name": "Blad Gamet",
+  "subtitle": "A Next.js Web3 game",
+  "description": "A Next.js application with Web3 and Farcaster integration",
+  "screenshotUrls": ["http://localhost:3000/screenshot-portrait.png"],
+  "iconUrl": "http://localhost:3000/icon.png",
+  "splashImageUrl": "http://localhost:3000/splash.png",
+  "splashBackgroundColor": "#FFFFFF",
+  "homeUrl": "http://localhost:3000",
+  "webhookUrl": "http://localhost:3000/api/webhook",
+  "primaryCategory": "social",
+  "tags": ["game", "web3", "farcaster"],
+  "heroImageUrl": "http://localhost:3000/hero.png",
+  "tagline": "Play, Connect, Earn",
+  "ogTitle": "Blad Gamet - Web3 Game on Farcaster",
+  "ogDescription": "A Next.js application with Web3 and Farcaster integration",
+  "ogImageUrl": "http://localhost:3000/og-image.png"
+}
+
+
