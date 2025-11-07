@@ -2,12 +2,12 @@
 
 import NFTViewClient from "./NFTViewClient";
 
-export default function NFTViewPage({
+export default async function NFTViewPage({
   params,
 }: {
-  params: { tokenId: string };
+  params: Promise<{ tokenId: string }>;
 }) {
-  const { tokenId } = params;
+  const { tokenId } = await params;
 
   return <NFTViewClient tokenId={tokenId} />;
 }
