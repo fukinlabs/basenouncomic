@@ -1,26 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { minikitConfig } from "../../minikit.config";
+import { generateArt } from "../../lib/p5-art-generator";
+import contractABI from "../../lib/contract-abi.json";
 
 // NFT Contract Address on Base
 const NFT_CONTRACT_ADDRESS = "0xe81B2748149d089eBdaE6Fee36230D98BA00FF49" as const;
-
-// ABI for mintForFid function
-const NFT_ABI = [
-  {
-    name: "mintForFid",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "fid", type: "uint256" }
-    ],
-    outputs: []
-  }
-] as const;
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();
@@ -28,6 +16,8 @@ export default function MintPage() {
   const [fid, setFid] = useState<string>("");
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
   const [isMinting, setIsMinting] = useState(false);
+  const [imageBase64, setImageBase64] = useState<string>("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { 
     writeContract, 
@@ -54,6 +44,24 @@ export default function MintPage() {
     }
   }, [isConfirmed, hash]);
 
+  // Generate art preview and base64
+  useEffect(() => {
+    if (!fid || isNaN(Number(fid))) return;
+    
+    // Use FID as tokenId for preview (will be actual tokenId after mint)
+    const previewTokenId = fid;
+    
+    if (canvasRef.current) {
+      try {
+        generateArt(canvasRef.current, { tokenId: previewTokenId });
+        const base64 = canvasRef.current.toDataURL("image/png");
+        setImageBase64(base64);
+      } catch (error) {
+        console.error("Error generating preview:", error);
+      }
+    }
+  }, [fid]);
+
   const handleMint = async () => {
     if (!isConnected || !address) {
       alert("Please connect your wallet first");
@@ -65,13 +73,18 @@ export default function MintPage() {
       return;
     }
 
+    if (!imageBase64) {
+      alert("Please wait for art generation to complete");
+      return;
+    }
+
     setIsMinting(true);
     try {
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
-        abi: NFT_ABI,
+        abi: contractABI,
         functionName: "mintForFid",
-        args: [address, BigInt(fid)],
+        args: [address, BigInt(fid), imageBase64],
       });
     } catch (error) {
       console.error("Mint error:", error);
@@ -152,9 +165,27 @@ export default function MintPage() {
               </p>
             </div>
 
+            {/* Art Preview */}
+            {fid && imageBase64 && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">NFT Preview:</p>
+                <div className="flex justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    width={300}
+                    height={300}
+                    className="border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500 text-center">
+                  This art will be minted with your NFT
+                </p>
+              </div>
+            )}
+
             <button
               onClick={handleMint}
-              disabled={isMinting || isPendingWrite || isConfirming || !fid}
+              disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
               className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {isMinting || isPendingWrite || isConfirming
