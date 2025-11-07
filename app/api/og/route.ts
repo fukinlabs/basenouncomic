@@ -14,8 +14,6 @@ export async function GET(request: NextRequest) {
 
   // Create SVG image with reference to the art
   // The actual art will be generated client-side and embedded as base64
-  const artUrl = `${process.env.NEXT_PUBLIC_ROOT_URL || "http://localhost:3000"}/api/generate-art?tokenId=${tokenId}&format=base64`;
-  
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>

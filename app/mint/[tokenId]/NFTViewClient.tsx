@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import ArtGenerator from "../../components/ArtGenerator";
 import { minikitConfig } from "../../../minikit.config";
 
@@ -33,12 +34,12 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         </div>
 
         <div className="space-y-4">
-          <a
+          <Link
             href="/mint"
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Mint Another NFT
-          </a>
+          </Link>
         </div>
       </div>
     </main>

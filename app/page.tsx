@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import Link from "next/link";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 
 // AuthResponse interface can be added when integrating auth
@@ -26,12 +27,12 @@ export default function Home() {
           A Next.js application with Web3 and Farcaster integration
         </p>
         <div className="text-center">
-          <a
+          <Link
             href="/mint"
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-sans"
           >
             🎨 Mint NFT
-          </a>
+          </Link>
         </div>
       </div>
     </main>

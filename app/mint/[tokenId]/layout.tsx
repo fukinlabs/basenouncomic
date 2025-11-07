@@ -7,9 +7,9 @@ const ROOT_URL = process.env.NEXT_PUBLIC_ROOT_URL || "http://localhost:3000";
 export async function generateMetadata({
   params,
 }: {
-  params: { tokenId: string };
+  params: Promise<{ tokenId: string }>;
 }): Promise<Metadata> {
-  const { tokenId } = params;
+  const { tokenId } = await params;
   const imageUrl = `${ROOT_URL}/api/og?tokenId=${tokenId}`;
   const pageUrl = `${ROOT_URL}/mint/${tokenId}`;
 
