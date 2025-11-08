@@ -267,14 +267,15 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   const seed = parseInt(config.tokenId) || 0;
   const rng = new SeededRandom(seed);
 
-  const cellCount = 3;
   const gridArea = width * 0.75;
+  const cellCount = 3; // 3x3 grid
   const cellSize = gridArea / cellCount;
   const w = cellSize;
 
-  // Generate numbers array and shuffle
+  // Use form 0-7 (8 forms) within gridArea
+  const formCount = 8; // form 0 to 7
   const numbers: number[] = [];
-  for (let i = 0; i < cellCount * cellCount; i++) {
+  for (let i = 0; i < formCount; i++) {
     numbers.push(i);
   }
   const shuffledNumbers = rng.shuffle(numbers);
@@ -283,10 +284,13 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   let count = 0;
   for (let j = 0; j < cellCount; j++) {
     for (let i = 0; i < cellCount; i++) {
-      const x = i * cellSize + (cellSize / 2) + (width - gridArea) / 2;
-      const y = j * cellSize + (cellSize / 2) + (height - gridArea) / 2;
-      shapes.push(new Shape(x, y, w, shuffledNumbers[count], colors, rng));
-      count++;
+      // Only create shapes for form 0-7 (8 shapes)
+      if (count < formCount) {
+        const x = i * cellSize + (cellSize / 2) + (width - gridArea) / 2;
+        const y = j * cellSize + (cellSize / 2) + (height - gridArea) / 2;
+        shapes.push(new Shape(x, y, w, shuffledNumbers[count], colors, rng));
+        count++;
+      }
     }
   }
 
