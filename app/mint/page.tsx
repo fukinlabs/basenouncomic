@@ -263,7 +263,7 @@ export default function MintPage() {
   };
 
   // Generate 9 art previews for the grid
-  const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(1).fill(null));
+  const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
 
   useEffect(() => {
     if (!fid || isNaN(Number(fid))) return;
@@ -356,14 +356,14 @@ export default function MintPage() {
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-6">
-            {/* White Square with 1x1 Grid */}
+            {/* White Square with 3x3 Grid */}
             {fid && (
               <div className="w-full bg-white rounded-lg p-4 shadow-lg">
-                <div className="flex justify-center">
-                  {Array.from({ length: 1 }).map((_, index) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 9 }).map((_, index) => (
                     <div
                       key={index}
-                      className="aspect-square bg-gray-100 rounded overflow-hidden max-w-full"
+                      className="aspect-square bg-gray-100 rounded overflow-hidden"
                     >
                       <canvas
                         ref={(el) => {
