@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
+import { sdk } from "@farcaster/miniapp-sdk";
 import { minikitConfig } from "../../minikit.config";
 import { generateArt } from "../../lib/p5-art-generator";
 import contractABI from "../../lib/contract-abi.json";
@@ -19,6 +20,21 @@ export default function MintPage() {
   const [isMinting, setIsMinting] = useState(false);
   const [imageBase64, setImageBase64] = useState<string>("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Call ready when page is loaded (following Farcaster docs)
+  // https://miniapps.farcaster.xyz/docs/guides/loading
+  // Wait for your app to be ready, then call sdk.actions.ready()
+  // This is required to hide the splash screen and display your content
+  useEffect(() => {
+    const callReady = async () => {
+      try {
+        await sdk.actions.ready();
+      } catch (error) {
+        console.error("Error calling sdk.actions.ready():", error);
+      }
+    };
+    callReady();
+  }, []);
 
   const { 
     writeContract, 

@@ -75,13 +75,25 @@ export default function Home() {
 
   // Call ready when interface is fully loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
+  // Wait for your app to be ready, then call sdk.actions.ready()
   useEffect(() => {
     // Only call ready when:
     // 1. Image has loaded (or failed to load or timeout)
     // 2. Frame is not already ready
     // This prevents jitter and content reflow
     if (isImageLoaded && !isFrameReady) {
+      // Call both OnchainKit's setFrameReady and Farcaster SDK's ready
       setFrameReady();
+      // Call sdk.actions.ready() directly to hide splash screen
+      // This is required to hide the splash screen and display your content
+      const callReady = async () => {
+        try {
+          await sdk.actions.ready();
+        } catch (error) {
+          console.error("Error calling sdk.actions.ready():", error);
+        }
+      };
+      callReady();
     }
   }, [isImageLoaded, isFrameReady, setFrameReady]);
    
@@ -106,13 +118,19 @@ export default function Home() {
       <div className="absolute inset-0 bg-[#2f3057]/30" />
       
       {/* Content - Button at bottom */}
-      <div className="relative flex-1 flex items-end justify-center pb-8 px-4 z-10">
-        <Link
-          href="/mint"
-          className="w-full max-w-xs px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center"
-        >
-          🎨 Mint NFT
-        </Link>
+      <div className="relative flex-1 flex items-end justify-center pb-8 px-4 z-20">
+        {!isImageLoaded ? (
+          <div className="w-full max-w-xs px-8 py-4 bg-gray-600 text-white rounded-lg font-sans text-lg font-semibold text-center">
+            Loading...
+          </div>
+        ) : (
+          <Link
+            href="/mint"
+            className="w-full max-w-xs px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center block"
+          >
+            🎨 Mint NFT
+          </Link>
+        )}
       </div>
     </main>
   );
