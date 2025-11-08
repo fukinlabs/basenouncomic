@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -210,6 +211,17 @@ export default function MintPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-100">
       <div className="w-full max-w-2xl">
+        {/* Blue Icon */}
+        <div className="flex justify-center mb-6">
+          <Image 
+            src="/blue-icon.png" 
+            alt="NFT Icon" 
+            width={96}
+            height={96}
+            className="object-contain"
+          />
+        </div>
+
         {!isConnected ? (
           <div className="text-center p-8 bg-white rounded-lg shadow-lg">
             <p className="text-gray-600 mb-4">Please connect your wallet to mint</p>
