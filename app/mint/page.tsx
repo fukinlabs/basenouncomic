@@ -394,27 +394,93 @@ export default function MintPage() {
 
   // Generate 9 art previews for the grid
   const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
+  const [canvasesReady, setCanvasesReady] = useState(false);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Generate art when FID changes and canvases are ready
   useEffect(() => {
-    if (!fid || isNaN(Number(fid))) return;
+    if (!fid || isNaN(Number(fid)) || !canvasesReady) return;
 
-    // Generate 9 variations using FID + index as seed
-    gridRefs.current.forEach((canvas, index) => {
-      if (canvas) {
-        try {
-          const seed = Number(fid) + index;
-          generateArt(canvas, { tokenId: seed.toString() });
-          
-          // Update imageBase64 when first canvas is ready
-          if (index === 0) {
-            const base64 = canvas.toDataURL("image/png");
-            setImageBase64(base64);
+    // Use requestAnimationFrame to ensure canvas is fully rendered
+    const frameId = requestAnimationFrame(() => {
+      // Generate 9 variations using FID + index as seed
+      gridRefs.current.forEach((canvas, index) => {
+        if (canvas) {
+          try {
+            const seed = Number(fid) + index;
+            generateArt(canvas, { tokenId: seed.toString() });
+            
+            // Update imageBase64 when first canvas is ready
+            if (index === 0) {
+              // Use setTimeout to ensure canvas is fully drawn
+              setTimeout(() => {
+                const base64 = canvas.toDataURL("image/png");
+                setImageBase64(base64);
+              }, 100);
+            }
+          } catch (error) {
+            console.error(`Error generating art for grid ${index}:`, error);
           }
-        } catch (error) {
-          console.error(`Error generating art for grid ${index}:`, error);
         }
-      }
+      });
     });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [fid, canvasesReady]);
+
+  // Check if all canvases are mounted and reset when FID changes
+  useEffect(() => {
+    // Reset when FID changes
+    setCanvasesReady(false);
+    setImageBase64(""); // Clear previous image
+    
+    if (!fid || isNaN(Number(fid))) {
+      return;
+    }
+
+    // Reset retry count when FID changes
+    retryCountRef.current = 0;
+    
+    // Check if all canvas refs are set
+    const maxRetries = 20; // Max 20 retries (1 second total)
+    
+    const checkCanvases = () => {
+      const allCanvasesReady = gridRefs.current.every(canvas => canvas !== null);
+      
+      if (allCanvasesReady) {
+        // Use double requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setCanvasesReady(true);
+          });
+        });
+      } else if (retryCountRef.current < maxRetries) {
+        // Retry after a short delay if canvases aren't ready yet
+        retryCountRef.current++;
+        // Clear previous timeout if exists
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
+        retryTimeoutRef.current = setTimeout(checkCanvases, 50);
+      } else {
+        // If max retries reached, try to generate anyway with available canvases
+        console.warn("Some canvases may not be ready, generating art anyway");
+        setCanvasesReady(true);
+      }
+    };
+
+    // Start checking after a short delay to allow DOM to update
+    const timeoutId = setTimeout(checkCanvases, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      retryCountRef.current = 0; // Reset retry count on cleanup
+    };
   }, [fid]);
 
   return (
