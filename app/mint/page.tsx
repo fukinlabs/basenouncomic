@@ -363,15 +363,16 @@ export default function MintPage() {
                   {Array.from({ length: 1 }).map((_, index) => (
                     <div
                       key={index}
-                      className="aspect-square bg-gray-100 rounded overflow-hidden"
+                      className="aspect-square bg-gray-100 rounded overflow-hidden max-w-full"
                     >
                       <canvas
                         ref={(el) => {
                           gridRefs.current[index] = el;
                         }}
-                        width={200}
-                        height={200}
-                        className="w-full h-full"
+                        width={600}
+                        height={600}
+                        className="w-full h-full object-contain"
+                        style={{ imageRendering: 'auto' }}
                       />
                     </div>
                   ))}
