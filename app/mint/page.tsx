@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect, useReadContract } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { sdk } from "@farcaster/miniapp-sdk";
 import { minikitConfig } from "../../minikit.config";
@@ -22,6 +22,7 @@ export default function MintPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [isAlreadyMinted, setIsAlreadyMinted] = useState<boolean | null>(null);
 
   // Call ready when page is loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
@@ -114,6 +115,31 @@ export default function MintPage() {
     }
   };
 
+  // Check if FID has already been minted
+  const { data: mintedFidResult, refetch: refetchMintedFid } = useReadContract({
+    address: NFT_CONTRACT_ADDRESS,
+    abi: contractABI,
+    functionName: "mintedFid",
+    args: fid ? [BigInt(fid)] : undefined,
+    query: {
+      enabled: !!fid && !isNaN(Number(fid)),
+    },
+  });
+
+  // Update isAlreadyMinted state when mintedFidResult changes
+  useEffect(() => {
+    if (mintedFidResult !== undefined) {
+      setIsAlreadyMinted(mintedFidResult as boolean);
+    }
+  }, [mintedFidResult]);
+
+  // Refetch mintedFid when fid changes
+  useEffect(() => {
+    if (fid && !isNaN(Number(fid))) {
+      refetchMintedFid();
+    }
+  }, [fid, refetchMintedFid]);
+
   const { 
     writeContract, 
     data: hash, 
@@ -153,6 +179,12 @@ export default function MintPage() {
 
     if (!imageBase64) {
       alert("Please wait for art generation to complete");
+      return;
+    }
+
+    // Check if FID has already been minted
+    if (isAlreadyMinted === true) {
+      alert("This FID has already been minted. Each FID can only mint once.");
       return;
     }
 
@@ -356,6 +388,15 @@ export default function MintPage() {
               </div>
             )}
 
+            {/* Already Minted Warning */}
+            {isAlreadyMinted === true && (
+              <div className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-700 text-center">
+                  ⚠️ This FID has already been minted. Each FID can only mint once.
+                </p>
+              </div>
+            )}
+
             {/* Bottom Button - SIGN IN FARCASTER or MINT */}
             <div className="w-full">
               {!isSignedIn && fid ? (
@@ -369,11 +410,13 @@ export default function MintPage() {
               ) : (
                 <button
                   onClick={handleMint}
-                  disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
+                  disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
                   className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-bold text-lg uppercase"
                 >
                   {isMinting || isPendingWrite || isConfirming
                     ? "Minting..."
+                    : isAlreadyMinted === true
+                    ? "ALREADY MINTED"
                     : "MINT"}
                 </button>
               )}
