@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySignInMessage } from "@farcaster/auth-client";
+import { createAppClient, viemConnector } from "@farcaster/auth-client";
 
 /**
  * API Route to verify Sign In with Farcaster message
@@ -9,6 +9,8 @@ import { verifySignInMessage } from "@farcaster/auth-client";
  * 
  * This endpoint verifies the SIWF message and signature from the client
  * and returns user information including FID.
+ * 
+ * Based on examples from: https://github.com/farcasterxyz/miniapps
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,30 +23,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create Farcaster auth client using viemConnector
+    // viemConnector handles getFid and isValidAuthAddress automatically
+    const client = createAppClient({
+      ethereum: viemConnector(),
+    });
+
     // Verify the sign in message
     // Note: verifySignInMessage now supports Auth Addresses (v0.7.0+)
-    const result = await verifySignInMessage({
+    const result = await client.verifySignInMessage({
       message,
       signature,
       domain: getUrlHost(request),
       nonce, // Optional: verify nonce to prevent replay attacks
     });
 
-    if (!result.success) {
+    if (result.isError) {
       return NextResponse.json(
-        { error: "Invalid signature", details: result.error },
+        { error: "Invalid signature", details: result.error?.message },
         { status: 401 }
       );
     }
 
     // Extract user information from verified message
+    // result has fid (from FarcasterResourceParams) and data.address (from SiweMessage)
     const fid = result.fid;
-    const address = result.address;
+    const address = result.data.address;
 
     return NextResponse.json({
       success: true,
       user: {
-        fid,
+        fid: fid.toString(),
         address,
       },
     });
