@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 
@@ -7,28 +7,52 @@ import { useMiniKit } from "@coinbase/onchainkit/minikit";
 
 export default function Home() {
   const { isFrameReady, setFrameReady } = useMiniKit();
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
-  // Initialize the miniapp
+  // Load background image and mark as ready when loaded
   useEffect(() => {
-    if (!isFrameReady) {
+    const img = new Image();
+    img.src = "/monkey.gif";
+    img.onload = () => {
+      setIsImageLoaded(true);
+    };
+    img.onerror = () => {
+      // Even if image fails, mark as loaded to show interface
+      setIsImageLoaded(true);
+    };
+  }, []);
+
+  // Call ready when interface is fully loaded (following Farcaster docs)
+  // https://miniapps.farcaster.xyz/docs/guides/loading
+  useEffect(() => {
+    // Only call ready when:
+    // 1. Image has loaded (or failed to load)
+    // 2. Frame is not already ready
+    // This prevents jitter and content reflow
+    if (isImageLoaded && !isFrameReady) {
       setFrameReady();
     }
-  }, [setFrameReady, isFrameReady]);
+  }, [isImageLoaded, isFrameReady, setFrameReady]);
    
   // Auth can be integrated here later if needed
 
   return (
-    <main className="relative min-h-screen w-full flex flex-col">
-      {/* Background Image - Full Screen */}
+    <main 
+      className="relative min-h-screen w-full flex flex-col"
+      style={{ backgroundColor: "#2f3057" }}
+    >
+      {/* Background GIF - Full Screen */}
       <div 
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url(/blue-hero.png)',
+          backgroundImage: 'url(/monkey.gif)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       />
       
       {/* Overlay for better button visibility (optional) */}
-      <div className="absolute inset-0 bg-black/20" />
+      <div className="absolute inset-0 bg-[#2f3057]/30" />
       
       {/* Content - Button at bottom */}
       <div className="relative flex-1 flex items-end justify-center pb-8 px-4 z-10">
