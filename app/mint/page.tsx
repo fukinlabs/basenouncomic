@@ -360,7 +360,7 @@ export default function MintPage() {
             {fid && (
               <div className="w-full bg-white rounded-lg p-4 shadow-lg">
                 <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: 9 }).map((_, index) => (
+                  {Array.from({ length: 1 }).map((_, index) => (
                     <div
                       key={index}
                       className="aspect-square bg-gray-100 rounded overflow-hidden"
@@ -408,6 +408,7 @@ export default function MintPage() {
                     style={{
                       backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
                       color: '#ffffff',
+                      padding: '15px',
                     }}
                     onMouseEnter={(e) => {
                       if (!isSigningIn) {
