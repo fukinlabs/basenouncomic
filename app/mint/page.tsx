@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { minikitConfig } from "../../minikit.config";
 import { generateArt } from "../../lib/p5-art-generator";
@@ -12,6 +12,7 @@ const NFT_CONTRACT_ADDRESS = "0xe81B2748149d089eBdaE6Fee36230D98BA00FF49" as con
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
   const { composeCastAsync } = useComposeCast();
   const [fid, setFid] = useState<string>("");
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
@@ -122,6 +123,14 @@ export default function MintPage() {
         {!isConnected ? (
           <div className="text-center p-8 bg-gray-100 rounded-lg">
             <p className="text-gray-600 mb-4">Please connect your wallet to mint</p>
+            {connectors.length > 0 && (
+              <button
+                onClick={() => connect({ connector: connectors[0] })}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Connect Wallet
+              </button>
+            )}
           </div>
         ) : mintedTokenId ? (
           <div className="text-center p-8 bg-green-50 rounded-lg">
@@ -149,6 +158,12 @@ export default function MintPage() {
           </div>
         ) : (
           <div className="bg-white p-8 rounded-lg shadow-lg">
+            {/* Connected Wallet Info */}
+            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm text-gray-600 mb-1">Connected Wallet:</p>
+              <p className="text-sm font-mono text-gray-900 break-all">{address}</p>
+            </div>
+
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Farcaster FID
