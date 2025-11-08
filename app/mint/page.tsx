@@ -116,14 +116,54 @@ export default function MintPage() {
 
     setIsMinting(true);
     try {
+      // Step 1: Upload image to Pinata IPFS
+      console.log("Uploading image to Pinata IPFS...");
+      const uploadResponse = await fetch("/api/upload-pinata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageBase64,
+          tokenId: fid, // Use FID as tokenId for now
+          fid,
+        }),
+      });
+
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        console.error("Upload error:", error);
+        
+        // If Pinata is not configured, fallback to base64 (not recommended)
+        if (error.error?.includes("Pinata API credentials not configured")) {
+          console.warn("Pinata not configured, using base64 directly (not recommended for production)");
+          // Continue with base64 as fallback
+        } else {
+          throw new Error(error.error || "Failed to upload to Pinata");
+        }
+      }
+
+      const uploadData = await uploadResponse.json();
+      const ipfsHash = uploadData.image?.ipfsHash;
+      const ipfsUrl = uploadData.image?.ipfsUrl;
+
+      console.log("Image uploaded to IPFS:", ipfsUrl);
+
+      // Step 2: Mint NFT with IPFS hash or base64 (fallback)
+      // Note: If your contract expects IPFS hash, use ipfsHash
+      // If it expects base64, use imageBase64 (current implementation)
+      // You may need to update your contract to accept IPFS hash instead
+      const imageData = ipfsHash ? `ipfs://${ipfsHash}` : imageBase64;
+
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
         functionName: "mintForFid",
-        args: [address, BigInt(fid), imageBase64],
+        args: [address, BigInt(fid), imageData],
       });
     } catch (error) {
       console.error("Mint error:", error);
+      alert(`Mint failed: ${error instanceof Error ? error.message : String(error)}`);
       setIsMinting(false);
     }
   };
@@ -148,15 +188,30 @@ export default function MintPage() {
     }
   };
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-2xl">
-        <h1 className="text-4xl font-bold text-center mb-8">
-          Mint Your NFT
-        </h1>
+  // Generate 9 art previews for the grid
+  const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
 
+  useEffect(() => {
+    if (!fid || isNaN(Number(fid))) return;
+
+    // Generate 9 variations using FID + index as seed
+    gridRefs.current.forEach((canvas, index) => {
+      if (canvas) {
+        try {
+          const seed = Number(fid) + index;
+          generateArt(canvas, { tokenId: seed.toString() });
+        } catch (error) {
+          console.error(`Error generating art for grid ${index}:`, error);
+        }
+      }
+    });
+  }, [fid]);
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-100">
+      <div className="w-full max-w-2xl">
         {!isConnected ? (
-          <div className="text-center p-8 bg-gray-100 rounded-lg">
+          <div className="text-center p-8 bg-white rounded-lg shadow-lg">
             <p className="text-gray-600 mb-4">Please connect your wallet to mint</p>
             {connectors.length > 0 && (
               <button
@@ -168,7 +223,7 @@ export default function MintPage() {
             )}
           </div>
         ) : mintedTokenId ? (
-          <div className="text-center p-8 bg-green-50 rounded-lg">
+          <div className="text-center p-8 bg-green-50 rounded-lg shadow-lg">
             <div className="mb-4">
               <div className="text-6xl mb-4">✅</div>
               <h2 className="text-2xl font-bold mb-2">NFT Minted Successfully!</h2>
@@ -193,66 +248,41 @@ export default function MintPage() {
           </div>
         ) : (
           <div className="bg-white p-8 rounded-lg shadow-lg">
-            {/* Connected Wallet Info */}
-            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <p className="text-sm text-gray-600 mb-1">Connected Wallet:</p>
-              <p className="text-sm font-mono text-gray-900 break-all">{address}</p>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Farcaster FID
-              </label>
-              {fid ? (
-                <div className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                  <p className="text-sm text-gray-900 font-mono">{fid}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    FID loaded from your Farcaster account
-                  </p>
+            {/* 3x3 Grid of Art Previews */}
+            {fid && (
+              <div className="mb-8">
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  {Array.from({ length: 9 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="aspect-square bg-gray-200 rounded overflow-hidden"
+                    >
+                      <canvas
+                        ref={(el) => {
+                          gridRefs.current[index] = el;
+                        }}
+                        width={200}
+                        height={200}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <>
-                  <input
-                    type="text"
-                    value={fid}
-                    onChange={(e) => setFid(e.target.value)}
-                    placeholder="Enter your Farcaster FID (or wait for auto-load)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Your Farcaster FID will be loaded automatically, or enter it manually
-                  </p>
-                </>
-              )}
-            </div>
-
-            {/* Art Preview */}
-            {fid && imageBase64 && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 mb-2">NFT Preview:</p>
-                <div className="flex justify-center">
-                  <canvas
-                    ref={canvasRef}
-                    width={300}
-                    height={300}
-                    className="border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <p className="mt-2 text-xs text-gray-500 text-center">
-                  This art will be minted with your NFT
-                </p>
               </div>
             )}
 
-            <button
-              onClick={handleMint}
-              disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
-              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {isMinting || isPendingWrite || isConfirming
-                ? "Minting..."
-                : "Mint NFT"}
-            </button>
+            {/* MINT Button */}
+            <div className="flex justify-center">
+              <button
+                onClick={handleMint}
+                disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
+                className="px-12 py-4 bg-purple-600 text-white rounded-full text-xl font-bold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-lg"
+              >
+                {isMinting || isPendingWrite || isConfirming
+                  ? "Minting..."
+                  : "MINT"}
+              </button>
+            </div>
 
             {(writeError || txError) && (
               <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
