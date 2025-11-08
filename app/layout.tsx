@@ -3,9 +3,51 @@ import React from "react";
 import "./globals.css";
 
 import { RootProvider } from "./rootProvider";
+import { minikitConfig } from "../minikit.config";
+
+const ROOT_URL = process.env.NEXT_PUBLIC_URL || 
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
+
+// Create MiniApp embed for the home page according to Farcaster docs
+const miniappEmbed = {
+  version: "1",
+  imageUrl: `${ROOT_URL}/blue-hero.png`,
+  button: {
+    title: "🎨 Mint NFT",
+    action: {
+      type: "launch_miniapp",
+      url: `${ROOT_URL}/mint`,
+      name: minikitConfig.miniapp.name,
+      splashImageUrl: minikitConfig.miniapp.splashImageUrl,
+      splashBackgroundColor: minikitConfig.miniapp.splashBackgroundColor,
+    },
+  },
+};
+
+// For backward compatibility
+const frameEmbed = {
+  ...miniappEmbed,
+  button: {
+    ...miniappEmbed.button,
+    action: {
+      ...miniappEmbed.button.action,
+      type: "launch_frame",
+    },
+  },
+};
+
 export const metadata: Metadata = {
-  title: "Blad Gamet",
-  description: "A Next.js application with Web3 and Farcaster integration",
+  title: `${minikitConfig.miniapp.name} - ${minikitConfig.miniapp.subtitle}`,
+  description: minikitConfig.miniapp.description || "Mint your unique NFT with generative art!",
+  openGraph: {
+    title: minikitConfig.miniapp.name,
+    description: minikitConfig.miniapp.description || "Mint your unique NFT with generative art!",
+    images: [minikitConfig.miniapp.heroImageUrl || `${ROOT_URL}/blue-hero.png`],
+  },
+  other: {
+    "fc:miniapp": JSON.stringify(miniappEmbed),
+    "fc:frame": JSON.stringify(frameEmbed), // Backward compatibility
+  },
 };
 
 
