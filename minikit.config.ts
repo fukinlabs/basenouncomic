@@ -9,7 +9,7 @@ export const minikitConfig = {
   },
   miniapp: {
     version: "1",
-    name: "Blad Gamet",
+    name: "basenouncomic",
     subtitle: "A Next.js Web3 game",
     description: "A Next.js application with Web3 and Farcaster integration",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
