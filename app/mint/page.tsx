@@ -188,6 +188,22 @@ export default function MintPage() {
     hash,
   });
 
+  // Reset minting state when user rejects/cancels transaction
+  useEffect(() => {
+    if (writeError) {
+      const errorMessage = writeError?.message || "";
+      const isUserRejected = 
+        errorMessage.toLowerCase().includes("user rejected") ||
+        errorMessage.toLowerCase().includes("rejected the request") ||
+        errorMessage.toLowerCase().includes("user denied") ||
+        errorMessage.toLowerCase().includes("user cancelled");
+      
+      if (isUserRejected) {
+        setIsMinting(false);
+      }
+    }
+  }, [writeError]);
+
   // Handle successful mint - extract tokenId from transaction receipt
   useEffect(() => {
     let isMounted = true;
@@ -341,7 +357,17 @@ export default function MintPage() {
       });
     } catch (error) {
       console.error("Mint error:", error);
-      alert(`Mint failed: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isUserRejected = 
+        errorMessage.toLowerCase().includes("user rejected") ||
+        errorMessage.toLowerCase().includes("rejected the request") ||
+        errorMessage.toLowerCase().includes("user denied") ||
+        errorMessage.toLowerCase().includes("user cancelled");
+      
+      // Don't show alert if user rejected/cancelled - it's expected behavior
+      if (!isUserRejected) {
+        alert(`Mint failed: ${errorMessage}`);
+      }
       setIsMinting(false);
     }
   };
@@ -570,13 +596,27 @@ export default function MintPage() {
                 </div>
               )}
 
-              {(writeError || txError) && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm text-center">
-                    Error: {writeError?.message || txError?.message}
-                  </p>
-                </div>
-              )}
+              {(writeError || txError) && (() => {
+                const errorMessage = writeError?.message || txError?.message || "";
+                const isUserRejected = 
+                  errorMessage.toLowerCase().includes("user rejected") ||
+                  errorMessage.toLowerCase().includes("rejected the request") ||
+                  errorMessage.toLowerCase().includes("user denied") ||
+                  errorMessage.toLowerCase().includes("user cancelled");
+                
+                // Don't show error if user rejected/cancelled - it's expected behavior
+                if (isUserRejected) {
+                  return null;
+                }
+                
+                return (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-600 text-sm text-center">
+                      Error: {errorMessage}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
