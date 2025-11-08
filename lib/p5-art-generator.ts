@@ -336,10 +336,16 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const width = 600;
-  const height = 600;
-  canvas.width = width;
-  canvas.height = height;
+  // Use canvas actual size or default to 600x600 for backward compatibility
+  // Canvas size should be set by the component using it
+  const width = canvas.width || 600;
+  const height = canvas.height || 600;
+  
+  // Ensure canvas has proper dimensions
+  if (!canvas.width || !canvas.height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
 
   const colors = ['#0000FF', '#FF0000', '#ff6392', '#FCBA3A', '#000000', '#f0f0f0'];
   
@@ -348,7 +354,8 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   const rng = new SeededRandom(seed);
 
   const cellCount = 3;
-  const gridArea = width * 0.75;
+  // Use percentage for grid area (75% of canvas size)
+  const gridArea = Math.min(width, height) * 0.75;
   const cellSize = gridArea / cellCount;
   const w = cellSize;
 
@@ -363,6 +370,7 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   let count = 0;
   for (let j = 0; j < cellCount; j++) {
     for (let i = 0; i < cellCount; i++) {
+      // Center the grid in the canvas
       const x = i * cellSize + (cellSize / 2) + (width - gridArea) / 2;
       const y = j * cellSize + (cellSize / 2) + (height - gridArea) / 2;
       shapes.push(new Shape(x, y, w, shuffledNumbers[count], colors, rng));
