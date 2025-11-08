@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -257,19 +256,8 @@ export default function MintPage() {
   }, [fid]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-100">
-      <div className="w-full max-w-2xl">
-        {/* Blue Icon */}
-        <div className="flex justify-center mb-6">
-          <Image 
-            src="/blue-icon.png" 
-            alt="NFT Icon" 
-            width={96}
-            height={96}
-            className="object-contain"
-          />
-        </div>
-
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black">
+      <div className="w-full max-w-md">
         {!isConnected ? (
           <div className="text-center p-8 bg-white rounded-lg shadow-lg">
             <p className="text-gray-600 mb-4">Please connect your wallet to mint</p>
@@ -283,7 +271,7 @@ export default function MintPage() {
             )}
           </div>
         ) : !fid ? (
-          <div className="bg-white p-8 rounded-lg shadow-lg border-2 border-blue-200">
+          <div className="bg-white p-8 rounded-lg shadow-lg">
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
               <p className="text-gray-600 mb-6">
@@ -335,90 +323,77 @@ export default function MintPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Sign In Section - กรอบ Sign In */}
-            {!isSignedIn && fid && (
-              <div className="bg-white p-6 rounded-lg shadow-lg border-2 border-blue-200">
-                <h3 className="text-lg font-semibold mb-3 text-gray-800">Sign In with Farcaster</h3>
-                <div className="text-center">
-                  <button
-                    onClick={handleSignIn}
-                    disabled={isSigningIn}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-semibold"
-                  >
-                    {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
-                  </button>
-                  <p className="mt-2 text-xs text-gray-500">
-                    Optional: Sign in to verify your identity
-                  </p>
-                  {signInError && (
-                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-red-600 text-sm">{signInError}</p>
-                      <button
-                        onClick={() => setSignInError(null)}
-                        className="mt-2 text-xs text-red-600 hover:underline"
-                      >
-                        Dismiss
-                      </button>
+          <div className="flex flex-col items-center space-y-6">
+            {/* White Square with 3x3 Grid */}
+            {fid && (
+              <div className="w-full bg-white rounded-lg p-4 shadow-lg">
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 9 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="aspect-square bg-gray-100 rounded overflow-hidden"
+                    >
+                      <canvas
+                        ref={(el) => {
+                          gridRefs.current[index] = el;
+                        }}
+                        width={200}
+                        height={200}
+                        className="w-full h-full"
+                      />
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Sign In Status */}
+            {/* Sign In Status (hidden when not signed in) */}
             {isSignedIn && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-700">
+              <div className="w-full p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-700 text-center">
                   ✅ Signed in with Farcaster (FID: {fid})
                 </p>
               </div>
             )}
 
-            {/* Mint NFT Section - กรอบ Mint NFT */}
-            <div className="bg-white p-8 rounded-lg shadow-lg border-2 border-purple-200">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800 text-center">Mint NFT</h3>
-
-              {/* 3x3 Grid of Art Previews */}
-              {fid && (
-                <div className="mb-6">
-                  <div className="grid grid-cols-3 gap-2">
-                    {Array.from({ length: 9 }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="aspect-square bg-gray-200 rounded overflow-hidden"
-                      >
-                        <canvas
-                          ref={(el) => {
-                            gridRefs.current[index] = el;
-                          }}
-                          width={200}
-                          height={200}
-                          className="w-full h-full"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* MINT Button */}
-              <div className="flex justify-center">
+            {/* Bottom Button - SIGN IN FARCASTER or MINT */}
+            <div className="w-full">
+              {!isSignedIn && fid ? (
+                <button
+                  onClick={handleSignIn}
+                  disabled={isSigningIn}
+                  className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-bold text-lg uppercase"
+                >
+                  {isSigningIn ? "Signing in..." : "SIGN IN FARCASTER"}
+                </button>
+              ) : (
                 <button
                   onClick={handleMint}
                   disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
-                  className="px-12 py-4 bg-purple-600 text-white rounded-full text-xl font-bold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-lg"
+                  className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-bold text-lg uppercase"
                 >
                   {isMinting || isPendingWrite || isConfirming
                     ? "Minting..."
                     : "MINT"}
                 </button>
-              </div>
+              )}
 
-              {/* Mint Error */}
+              {/* Error Messages */}
+              {signInError && !isSignedIn && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm text-center">{signInError}</p>
+                  <button
+                    onClick={() => setSignInError(null)}
+                    className="mt-2 text-xs text-red-600 hover:underline mx-auto block"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
               {(writeError || txError) && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm">
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm text-center">
                     Error: {writeError?.message || txError?.message}
                   </p>
                 </div>

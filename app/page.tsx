@@ -111,7 +111,7 @@ export default function Home() {
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: 'url(/monkey.gif)',
-          backgroundSize: 'cover',
+          backgroundSize: '110%',
           backgroundPosition: 'center',
         }}
       />
