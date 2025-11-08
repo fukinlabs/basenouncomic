@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Add metadata
     const metadata = JSON.stringify({
-      name: `NFT #${tokenId || fid || "unknown"}`,
+      name: `Base Abstract #${tokenId || fid || "unknown"}`,
       description: `Generative art NFT for Farcaster FID ${fid}`,
       attributes: [
         { trait_type: "FID", value: fid || "unknown" },

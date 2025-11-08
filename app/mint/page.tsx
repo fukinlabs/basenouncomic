@@ -155,15 +155,60 @@ export default function MintPage() {
     hash,
   });
 
-  // Handle successful mint
+  // Handle successful mint - extract tokenId from transaction receipt
   useEffect(() => {
-    if (isConfirmed && hash) {
-      setIsMinting(false);
-      // Extract token ID from transaction if possible
-      // For now, we'll use a placeholder
-      setMintedTokenId(hash);
-    }
-  }, [isConfirmed, hash]);
+    const extractTokenId = async () => {
+      if (isConfirmed && hash) {
+        try {
+          // Get transaction receipt to extract tokenId from MintForFID event
+          const { createPublicClient, http, parseEventLogs } = await import("viem");
+          const { base } = await import("viem/chains");
+          
+          const publicClient = createPublicClient({
+            transport: http(),
+            chain: base,
+          });
+          
+          const receipt = await publicClient.getTransactionReceipt({ hash });
+          
+          // Parse MintForFID event to get tokenId
+          const mintEvents = parseEventLogs({
+            abi: contractABI,
+            eventName: "MintForFID",
+            logs: receipt.logs,
+          });
+          
+          if (mintEvents.length > 0) {
+            const event = mintEvents[0];
+            // Access args from the parsed event
+            // Type assertion needed because parseEventLogs returns Log type
+            const eventArgs = (event as { args?: { tokenId?: bigint } }).args;
+            const tokenId = eventArgs?.tokenId?.toString();
+            if (tokenId) {
+              setMintedTokenId(tokenId);
+              console.log("Minted tokenId:", tokenId);
+            } else {
+              // Fallback: use FID as tokenId if event parsing fails
+              console.warn("Could not extract tokenId from event, using FID as fallback");
+              setMintedTokenId(fid);
+            }
+          } else {
+            // Fallback: use FID as tokenId if no event found
+            console.warn("No MintForFID event found, using FID as fallback");
+            setMintedTokenId(fid);
+          }
+        } catch (error) {
+          console.error("Error extracting tokenId:", error);
+          // Fallback: use FID as tokenId
+          setMintedTokenId(fid);
+        } finally {
+          setIsMinting(false);
+        }
+      }
+    };
+    
+    extractTokenId();
+  }, [isConfirmed, hash, fid]);
 
 
   const handleMint = async () => {
@@ -220,14 +265,17 @@ export default function MintPage() {
       const uploadData = await uploadResponse.json();
       const ipfsHash = uploadData.image?.ipfsHash;
       const ipfsUrl = uploadData.image?.ipfsUrl;
+      const metadataIpfsHash = uploadData.metadata?.ipfsHash;
+      const metadataIpfsUrl = uploadData.metadata?.ipfsUrl;
 
       console.log("Image uploaded to IPFS:", ipfsUrl);
+      console.log("Metadata uploaded to IPFS:", metadataIpfsUrl);
 
-      // Step 2: Mint NFT with IPFS hash or base64 (fallback)
-      // Note: If your contract expects IPFS hash, use ipfsHash
-      // If it expects base64, use imageBase64 (current implementation)
-      // You may need to update your contract to accept IPFS hash instead
-      const imageData = ipfsHash ? `ipfs://${ipfsHash}` : imageBase64;
+      // Step 2: Mint NFT with metadata IPFS hash (preferred) or image IPFS hash (fallback) or base64
+      // Use metadata IPFS hash so contract can return proper tokenURI with full metadata
+      const imageData = metadataIpfsHash 
+        ? `ipfs://${metadataIpfsHash}` 
+        : (ipfsHash ? `ipfs://${ipfsHash}` : imageBase64);
 
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
