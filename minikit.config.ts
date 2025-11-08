@@ -1,4 +1,6 @@
-const ROOT_URL = process.env.NEXT_PUBLIC_ROOT_URL || "http://localhost:3000";
+const ROOT_URL =
+  process.env.NEXT_PUBLIC_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
 
 export const minikitConfig = {
   accountAssociation: {
@@ -10,21 +12,21 @@ export const minikitConfig = {
   miniapp: {
     version: "1",
     name: "basenouncomic",
-    subtitle: "A Next.js Web3 game",
-    description: "A Next.js application with Web3 and Farcaster integration",
+     subtitle: "Your AI Ad Companion", 
+    description: "Ads",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
-    iconUrl: `${ROOT_URL}/icon.png`,
-    splashImageUrl: `${ROOT_URL}/splash.png`,
-    splashBackgroundColor: "#FFFFFF",
+    iconUrl: `${ROOT_URL}/blue-icon.png`,
+    splashImageUrl: `${ROOT_URL}/blue-hero.png`,
+    splashBackgroundColor: "#000000",
     homeUrl: ROOT_URL,
     webhookUrl: `${ROOT_URL}/api/webhook`,
     primaryCategory: "social",
-    tags: ["game", "web3", "farcaster"],
-    heroImageUrl: `${ROOT_URL}/hero.png`,
-    tagline: "Play, Connect, Earn",
-    ogTitle: "Blad Gamet - Web3 Game on Farcaster",
-    ogDescription: "A Next.js application with Web3 and Farcaster integration",
-    ogImageUrl: `${ROOT_URL}/og-image.png`,
+    tags: ["marketing", "ads", "quickstart", "waitlist"],
+    heroImageUrl: `${ROOT_URL}/blue-hero.png`, 
+    tagline: "",
+    ogTitle: "",
+    ogDescription: "",
+    ogImageUrl: `${ROOT_URL}/blue-hero.png`,
   },
 } as const;
 
