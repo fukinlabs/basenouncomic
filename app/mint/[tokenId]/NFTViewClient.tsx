@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ArtGenerator from "../../components/ArtGenerator";
+import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { minikitConfig } from "../../../minikit.config";
 
 interface NFTMetadata {
@@ -14,10 +15,13 @@ interface NFTMetadata {
 }
 
 export default function NFTViewClient({ tokenId }: { tokenId: string }) {
+  const { composeCastAsync } = useComposeCast();
   const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,6 +74,45 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
       isMounted = false;
     };
   }, [tokenId]);
+
+  const handleShareFarcaster = async () => {
+    try {
+      setIsSharing(true);
+      const shareUrl = `${process.env.NEXT_PUBLIC_ROOT_URL || window.location.origin}/mint/${tokenId}`;
+      const text = `🎨 Check out my NFT #${tokenId} on ${minikitConfig.miniapp.name}! ${shareUrl}`;
+      
+      const result = await composeCastAsync({
+        text: text,
+        embeds: [shareUrl]
+      });
+
+      if (result?.cast) {
+        console.log("Cast created successfully:", result.cast.hash);
+      }
+    } catch (error) {
+      console.error("Error sharing cast:", error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      const shareUrl = `${process.env.NEXT_PUBLIC_ROOT_URL || window.location.origin}/mint/${tokenId}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error("Error copying link:", error);
+    }
+  };
+
+  const handleShareTwitter = () => {
+    const shareUrl = `${process.env.NEXT_PUBLIC_ROOT_URL || window.location.origin}/mint/${tokenId}`;
+    const text = `🎨 Check out my NFT #${tokenId} on ${minikitConfig.miniapp.name}!`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
@@ -144,6 +187,35 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         </div>
 
         <div className="space-y-4">
+          {/* Share Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={handleShareFarcaster}
+              disabled={isSharing}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+            >
+              {isSharing ? "Sharing..." : "📱 Share on Farcaster"}
+            </button>
+            
+            <button
+              onClick={handleShareTwitter}
+              className="px-6 py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors font-semibold"
+            >
+              🐦 Share on Twitter/X
+            </button>
+            
+            <button
+              onClick={handleCopyLink}
+              className={`px-6 py-3 rounded-lg transition-colors font-semibold ${
+                copySuccess
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-600 text-white hover:bg-gray-700"
+              }`}
+            >
+              {copySuccess ? "✓ Copied!" : "📋 Copy Link"}
+            </button>
+          </div>
+
           <Link
             href="/mint"
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
