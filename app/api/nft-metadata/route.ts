@@ -101,10 +101,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let metadata: any;
+    let metadata: {
+      name?: string;
+      description?: string;
+      image?: string;
+      attributes?: Array<{ trait_type: string; value: string | number }>;
+      [key: string]: unknown;
+    };
     try {
       metadata = await metadataResponse.json();
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: "Invalid JSON response from metadata URL" },
         { status: 500 }

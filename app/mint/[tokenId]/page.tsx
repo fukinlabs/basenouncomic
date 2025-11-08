@@ -1,5 +1,3 @@
-"use client";
-
 import NFTViewClient from "./NFTViewClient";
 
 export default async function NFTViewPage({
