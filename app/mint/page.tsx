@@ -23,21 +23,54 @@ export default function MintPage() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [isAlreadyMinted, setIsAlreadyMinted] = useState<boolean | null>(null);
+  const [isInterfaceReady, setIsInterfaceReady] = useState(false);
+  const [hasCalledReady, setHasCalledReady] = useState(false);
 
-  // Call ready when page is loaded (following Farcaster docs)
+  // Call ready when interface is fully loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
   // Wait for your app to be ready, then call sdk.actions.ready()
   // This is required to hide the splash screen and display your content
+  // You should call ready as soon as possible while avoiding jitter and content reflows
+  // Don't call ready until your interface has loaded to avoid jitter and content reflow
   useEffect(() => {
-    const callReady = async () => {
-      try {
-        await sdk.actions.ready();
-      } catch (error) {
-        console.error("Error calling sdk.actions.ready():", error);
+    let cancelled = false;
+    let frameId2: number | null = null;
+    
+    // Use requestAnimationFrame to ensure DOM is ready and avoid jitter
+    // This ensures the UI skeleton/placeholder is rendered before hiding splash screen
+    const frameId1 = requestAnimationFrame(() => {
+      if (cancelled) return;
+      // Use double RAF to ensure layout is complete
+      frameId2 = requestAnimationFrame(() => {
+        if (!cancelled) {
+          setIsInterfaceReady(true);
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frameId1);
+      if (frameId2 !== null) {
+        cancelAnimationFrame(frameId2);
       }
     };
-    callReady();
   }, []);
+
+  // Call ready when interface is ready (following Farcaster best practices)
+  useEffect(() => {
+    if (isInterfaceReady && !hasCalledReady) {
+      setHasCalledReady(true);
+      const callReady = async () => {
+        try {
+          await sdk.actions.ready();
+        } catch (error) {
+          console.error("Error calling sdk.actions.ready():", error);
+        }
+      };
+      callReady();
+    }
+  }, [isInterfaceReady, hasCalledReady]);
 
   // Get FID from SDK context automatically (following Farcaster SDK Context docs)
   // https://miniapps.farcaster.xyz/docs/sdk/context#open-mini-app
