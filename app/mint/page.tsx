@@ -36,6 +36,25 @@ export default function MintPage() {
     callReady();
   }, []);
 
+  // Get FID from SDK context automatically (following Farcaster SDK Context docs)
+  // https://miniapps.farcaster.xyz/docs/sdk/context#open-mini-app
+  useEffect(() => {
+    const getContext = async () => {
+      try {
+        const inMini = await sdk.isInMiniApp();
+        if (!inMini) return;
+
+        const ctx = await sdk.context;
+        if (ctx?.user?.fid) {
+          setFid(ctx.user.fid.toString());
+        }
+      } catch (error) {
+        console.error("Error getting context:", error);
+      }
+    };
+    getContext();
+  }, []);
+
   const { 
     writeContract, 
     data: hash, 
@@ -184,16 +203,27 @@ export default function MintPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Farcaster FID
               </label>
-              <input
-                type="text"
-                value={fid}
-                onChange={(e) => setFid(e.target.value)}
-                placeholder="Enter your Farcaster FID"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="mt-2 text-sm text-gray-500">
-                Your Farcaster FID is a unique number associated with your Farcaster account
-              </p>
+              {fid ? (
+                <div className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
+                  <p className="text-sm text-gray-900 font-mono">{fid}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    FID loaded from your Farcaster account
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={fid}
+                    onChange={(e) => setFid(e.target.value)}
+                    placeholder="Enter your Farcaster FID (or wait for auto-load)"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    Your Farcaster FID will be loaded automatically, or enter it manually
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Art Preview */}
