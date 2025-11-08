@@ -20,7 +20,8 @@ export default function MintPage() {
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
   const [isMinting, setIsMinting] = useState(false);
   const [imageBase64, setImageBase64] = useState<string>("");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   // Call ready when page is loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
@@ -56,6 +57,58 @@ export default function MintPage() {
     getContext();
   }, []);
 
+  // Sign In with Farcaster (following Farcaster Auth Guide)
+  // https://miniapps.farcaster.xyz/docs/sdk/actions/sign-in
+  const handleSignIn = async () => {
+    setIsSigningIn(true);
+    try {
+      // Generate a random nonce (at least 8 alphanumeric characters)
+      const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      // Request Sign In with Farcaster credential
+      const result = await sdk.actions.signIn({
+        nonce,
+        acceptAuthAddress: true, // Support Auth Addresses for better UX
+      });
+
+      console.log("Sign In result:", result);
+
+      // Verify the message on server
+      const verifyResponse = await fetch("/api/verify-signin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: result.message,
+          signature: result.signature,
+          nonce,
+        }),
+      });
+
+      if (!verifyResponse.ok) {
+        const error = await verifyResponse.json();
+        throw new Error(error.error || "Failed to verify sign in");
+      }
+
+      const verifyData = await verifyResponse.json();
+      if (verifyData.success && verifyData.user?.fid) {
+        setFid(verifyData.user.fid.toString());
+        setIsSignedIn(true);
+        console.log("User signed in successfully:", verifyData.user);
+      }
+    } catch (error) {
+      console.error("Sign In error:", error);
+      if (error instanceof Error && error.name === "RejectedByUser") {
+        alert("Sign in was cancelled by user");
+      } else {
+        alert(`Sign in failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
   const { 
     writeContract, 
     data: hash, 
@@ -81,23 +134,6 @@ export default function MintPage() {
     }
   }, [isConfirmed, hash]);
 
-  // Generate art preview and base64
-  useEffect(() => {
-    if (!fid || isNaN(Number(fid))) return;
-    
-    // Use FID as tokenId for preview (will be actual tokenId after mint)
-    const previewTokenId = fid;
-    
-    if (canvasRef.current) {
-      try {
-        generateArt(canvasRef.current, { tokenId: previewTokenId });
-        const base64 = canvasRef.current.toDataURL("image/png");
-        setImageBase64(base64);
-      } catch (error) {
-        console.error("Error generating preview:", error);
-      }
-    }
-  }, [fid]);
 
   const handleMint = async () => {
     if (!isConnected || !address) {
@@ -201,6 +237,12 @@ export default function MintPage() {
         try {
           const seed = Number(fid) + index;
           generateArt(canvas, { tokenId: seed.toString() });
+          
+          // Update imageBase64 when first canvas is ready
+          if (index === 0) {
+            const base64 = canvas.toDataURL("image/png");
+            setImageBase64(base64);
+          }
         } catch (error) {
           console.error(`Error generating art for grid ${index}:`, error);
         }
@@ -234,6 +276,24 @@ export default function MintPage() {
               </button>
             )}
           </div>
+        ) : !fid ? (
+          <div className="text-center p-8 bg-white rounded-lg shadow-lg">
+            <p className="text-gray-600 mb-4">
+              {isSignedIn ? "Signed in successfully!" : "Sign in with Farcaster to continue"}
+            </p>
+            {!isSignedIn && (
+              <button
+                onClick={handleSignIn}
+                disabled={isSigningIn}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSigningIn ? "Signing in..." : "Sign In with Farcaster"}
+              </button>
+            )}
+            {isSignedIn && (
+              <p className="text-sm text-green-600 mt-2">Waiting for FID...</p>
+            )}
+          </div>
         ) : mintedTokenId ? (
           <div className="text-center p-8 bg-green-50 rounded-lg shadow-lg">
             <div className="mb-4">
@@ -260,6 +320,15 @@ export default function MintPage() {
           </div>
         ) : (
           <div className="bg-white p-8 rounded-lg shadow-lg">
+            {/* Sign In Status */}
+            {isSignedIn && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-700">
+                  ✅ Signed in with Farcaster (FID: {fid})
+                </p>
+              </div>
+            )}
+
             {/* 3x3 Grid of Art Previews */}
             {fid && (
               <div className="mb-8">
@@ -280,6 +349,22 @@ export default function MintPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Sign In Button (if not signed in but have wallet) */}
+            {!isSignedIn && fid && (
+              <div className="mb-4 text-center">
+                <button
+                  onClick={handleSignIn}
+                  disabled={isSigningIn}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
+                >
+                  {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
+                </button>
+                <p className="mt-2 text-xs text-gray-500">
+                  Optional: Sign in to verify your identity
+                </p>
               </div>
             )}
 

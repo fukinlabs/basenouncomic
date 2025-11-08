@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@coinbase/onchainkit": "latest",
+    "@farcaster/auth-client": "^0.7.0",
     "@farcaster/miniapp-sdk": "^0.2.1",
     "@farcaster/miniapp-wagmi-connector": "^1.1.0",
     "@tanstack/react-query": "^5.81.5",
