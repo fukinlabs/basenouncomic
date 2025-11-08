@@ -24,13 +24,13 @@ export default function Home() {
         <div className="flex justify-center mb-8">
           <img
             src="/blue-icon.png"
-            alt="Blad Gamet Logo"
+            alt="Basenouncomic Logo"
             className="w-24 h-24 object-contain"
           />
         </div>
         
         <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">
-          Welcome to Blad Gamet
+          Welcome to Basenouncomic
         </h1>
         <p className="text-center text-gray-600 mb-8 max-w-2xl mx-auto">
           A Next.js application with Web3 and Farcaster integration. Mint your unique NFT with generative art!
