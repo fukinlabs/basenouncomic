@@ -22,6 +22,10 @@ class SeededRandom {
     return Math.floor(this.random() * max);
   }
 
+  randomChoice<T>(array: T[]): T {
+    return array[this.randomInt(array.length)];
+  }
+
   shuffle<T>(array: T[]): T[] {
     const result = [...array];
     for (let i = result.length - 1; i > 0; i--) {
@@ -49,8 +53,17 @@ class Shape {
     this.w = w;
     this.clrs = [...colors];
     this.rng = rng;
-    this.scaleX = rng.random() < 0.5 ? -1 : 1;
-    this.angle = rng.randomInt(4) * (Math.PI * 2 / 4);
+    
+    // If form is 8 (Noggles) → no rotation, no flip
+    if (f === 8) {
+      this.scaleX = -1;   // No flip
+      this.angle = 0;    // No rotation
+    } else {
+      this.scaleX = rng.random() < 0.5 ? -1 : 1;  // Random left or right
+      this.angle = rng.randomInt(4) * (Math.PI * 2 / 4);  // Random rotation 0°, 90°, 180°, 270°
+    }
+    
+    // Shuffle colors randomly
     this.clrs = rng.shuffle(this.clrs);
     this.form = f;
   }
@@ -100,13 +113,64 @@ class Shape {
       ctx.arc(0, 0, this.w * 0.5, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.form === 1) {
-      ctx.fillStyle = remainingColors[0] || this.clrs[0] || '#000000';
-      ctx.fillRect(this.w * 0.125 - this.w / 2, this.w / 4 - this.w / 2, this.w * 0.75, this.w / 2);
-      ctx.fillRect(this.w * 0.375 - this.w / 2, 0 - this.w / 2, this.w / 4, this.w);
-      ctx.fillStyle = remainingColors[1] || this.clrs[1] || '#000000';
+      // New form 1: Creative explosion with layers
+      ctx.save();
+      ctx.lineWidth = 0;
+      const s = this.w * 0.8;
+      const layers = 5;
+      
+      // Center artist power
+      ctx.fillStyle = this.clrs[0];
       ctx.beginPath();
-      ctx.arc(0, 0, this.w / 2, 0, Math.PI * 2);
+      ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Creative explosion (static version, no animation)
+      for (let i = 0; i < layers; i++) {
+        ctx.save();
+        const angle = (Math.PI * 2 / layers) * i;
+        ctx.rotate(angle);
+        const r = s * 0.4; // Static radius (removed sin animation)
+        
+        // Inspiration lines
+        ctx.fillStyle = this.clrs[(i + 1) % this.clrs.length] || this.clrs[0];
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI / 3; a += 0.05) {
+          const x = Math.cos(a) * r;
+          const y = Math.sin(a) * r;
+          if (a === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        for (let a = Math.PI / 3; a > 0; a -= 0.05) {
+          const x = Math.cos(a) * (r * 0.3);
+          const y = Math.sin(a) * (r * 0.3);
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      
+      // Spark points (static version)
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 8; i++) {
+        const a = (Math.PI * 2 / 8) * i;
+        const x = Math.cos(a) * s * 0.45;
+        const y = Math.sin(a) * s * 0.45;
+        ctx.beginPath();
+        ctx.arc(x, y, s * 0.05, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Inner balance circle
+      ctx.fillStyle = this.clrs[1] || this.clrs[0];
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     } else if (this.form === 2) {
       ctx.fillStyle = remainingColors[0] || this.clrs[1] || '#000000';
       ctx.fillRect(-this.w * 0.25 - this.w * 0.15 / 2, this.w * 0.25 - this.w * 0.15 / 2, this.w * 0.15, this.w * 0.15);
@@ -119,14 +183,14 @@ class Shape {
       ctx.ellipse(this.w * 0.2, 0, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.form === 3) {
+      const n = 8;
+      const cellSize = this.w / n;
       ctx.fillStyle = remainingColors[0] || this.clrs[0] || '#000000';
       ctx.fillRect(-this.w * 0.05 - this.w * 0.7 / 2, -this.w * 0.05 - this.w * 0.7 / 2, this.w * 0.7, this.w * 0.7);
       ctx.save();
       ctx.translate(this.w * 0.05, this.w * 0.05);
       ctx.scale(0.7, 0.7);
       ctx.fillStyle = remainingColors[1] || this.clrs[1] || '#000000';
-      const n = 8;
-      const cellSize = this.w / n;
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
           const x = (i * cellSize) - (this.w / 2) + (cellSize / 2);
@@ -186,48 +250,64 @@ class Shape {
         ctx.fill();
         ctx.restore();
       }
+      // Center stamen
       ctx.fillStyle = remainingColors[1] || this.clrs[2] || '#000000';
       ctx.beginPath();
       ctx.arc(0, 0, this.w * 0.15, 0, Math.PI * 2);
       ctx.fill();
+      // Center point
       ctx.fillStyle = this.clrs[0];
       ctx.beginPath();
       ctx.arc(0, 0, this.w * 0.05, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.form === 7) {
-      // Sun pattern
-      ctx.fillStyle = remainingColors[1] || this.clrs[2] || '#000000';
-      ctx.beginPath();
-      ctx.arc(0, 0, this.w, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = remainingColors[0] || this.clrs[1] || '#000000';
-      ctx.beginPath();
-      ctx.arc(0, 0, this.w * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = this.clrs[0];
-      for (let i = 0; i < 8; i++) {
-        ctx.save();
-        ctx.rotate((Math.PI / 4) * i);
-        ctx.beginPath();
-        ctx.moveTo(0, -this.w * 0.5);
-        ctx.lineTo(this.w * 0.1, -this.w * 0.35);
-        ctx.lineTo(-this.w * 0.1, -this.w * 0.35);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-      ctx.fillStyle = remainingColors[2] || this.clrs[3] || this.clrs[0] || '#000000';
-      ctx.beginPath();
-      ctx.arc(0, 0, this.w * 0.1, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (this.form === 8) {
-      // Noggles
+      // New form 7: Dynamic balance (static version)
       ctx.save();
-      ctx.rotate(Math.PI / 2);
+      ctx.lineWidth = 3;
+      const s = this.w * 0.8;
+      const rot = 0; // Static rotation (removed frameCount animation)
+      ctx.rotate(rot);
+      
+      // Buy side power (green)
+      ctx.strokeStyle = '#00ff99';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s, s * 0.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Sell side power (red)
+      ctx.strokeStyle = '#ff4b4b';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * 0.6, s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Center balance circle
+      ctx.lineWidth = 0;
+      ctx.fillStyle = this.clrs[1] || this.clrs[0];
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Rotating power points (static version)
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI * 2 / 6) * i;
+        const x = Math.cos(angle) * s * 0.35;
+        const y = Math.sin(angle) * s * 0.35;
+        ctx.beginPath();
+        ctx.arc(x, y, s * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if (this.form === 8) {
+      // Noggles – RED FRAME
+      ctx.save();
+      ctx.scale(-1, 1);
       const s = this.w * 0.5;
       
+      ctx.lineWidth = 0;
+      
       // Red frames
-      ctx.fillStyle = this.clrs[0];
+      ctx.fillStyle = this.clrs[1] || this.clrs[0];
       ctx.fillRect(-s * 0.3 - s * 0.6 / 2, 0 - s * 0.6 / 2, s * 0.6, s * 0.6);
       ctx.fillRect(s * 0.45 - s * 0.6 / 2, 0 - s * 0.6 / 2, s * 0.6, s * 0.6);
       
@@ -267,15 +347,14 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   const seed = parseInt(config.tokenId) || 0;
   const rng = new SeededRandom(seed);
 
+  const cellCount = 3;
   const gridArea = width * 0.75;
-  const cellCount = 3; // 3x3 grid
   const cellSize = gridArea / cellCount;
   const w = cellSize;
 
-  // Use form 0-7 (8 forms) within gridArea
-  const formCount = 8; // form 0 to 7
+  // Generate numbers array and shuffle (0-8 for 9 forms)
   const numbers: number[] = [];
-  for (let i = 0; i < formCount; i++) {
+  for (let i = 0; i < cellCount * cellCount; i++) {
     numbers.push(i);
   }
   const shuffledNumbers = rng.shuffle(numbers);
@@ -284,13 +363,10 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   let count = 0;
   for (let j = 0; j < cellCount; j++) {
     for (let i = 0; i < cellCount; i++) {
-      // Only create shapes for form 0-7 (8 shapes)
-      if (count < formCount) {
-        const x = i * cellSize + (cellSize / 2) + (width - gridArea) / 2;
-        const y = j * cellSize + (cellSize / 2) + (height - gridArea) / 2;
-        shapes.push(new Shape(x, y, w, shuffledNumbers[count], colors, rng));
-        count++;
-      }
+      const x = i * cellSize + (cellSize / 2) + (width - gridArea) / 2;
+      const y = j * cellSize + (cellSize / 2) + (height - gridArea) / 2;
+      shapes.push(new Shape(x, y, w, shuffledNumbers[count], colors, rng));
+      count++;
     }
   }
 
@@ -303,4 +379,3 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
     shape.show(ctx);
   }
 }
-
