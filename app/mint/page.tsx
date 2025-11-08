@@ -22,6 +22,7 @@ export default function MintPage() {
   const [imageBase64, setImageBase64] = useState<string>("");
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   // Call ready when page is loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
@@ -61,6 +62,7 @@ export default function MintPage() {
   // https://miniapps.farcaster.xyz/docs/sdk/actions/sign-in
   const handleSignIn = async () => {
     setIsSigningIn(true);
+    setSignInError(null); // Clear previous errors
     try {
       // Generate a random nonce (at least 8 alphanumeric characters)
       const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -95,14 +97,18 @@ export default function MintPage() {
       if (verifyData.success && verifyData.user?.fid) {
         setFid(verifyData.user.fid.toString());
         setIsSignedIn(true);
+        setSignInError(null);
         console.log("User signed in successfully:", verifyData.user);
       }
     } catch (error) {
       console.error("Sign In error:", error);
+      // If user cancels, silently return (don't show error)
       if (error instanceof Error && error.name === "RejectedByUser") {
-        alert("Sign in was cancelled by user");
+        // User cancelled - just return without showing error
+        return;
       } else {
-        alert(`Sign in failed: ${error instanceof Error ? error.message : String(error)}`);
+        // Show error for other failures
+        setSignInError(error instanceof Error ? error.message : String(error));
       }
     } finally {
       setIsSigningIn(false);
@@ -277,22 +283,32 @@ export default function MintPage() {
             )}
           </div>
         ) : !fid ? (
-          <div className="text-center p-8 bg-white rounded-lg shadow-lg">
-            <p className="text-gray-600 mb-4">
-              {isSignedIn ? "Signed in successfully!" : "Sign in with Farcaster to continue"}
-            </p>
-            {!isSignedIn && (
-              <button
-                onClick={handleSignIn}
-                disabled={isSigningIn}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSigningIn ? "Signing in..." : "Sign In with Farcaster"}
-              </button>
-            )}
-            {isSignedIn && (
-              <p className="text-sm text-green-600 mt-2">Waiting for FID...</p>
-            )}
+          <div className="bg-white p-8 rounded-lg shadow-lg border-2 border-blue-200">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
+              <p className="text-gray-600 mb-6">
+                {isSignedIn ? "Signed in successfully!" : "Sign in with Farcaster to continue"}
+              </p>
+              {!isSignedIn && (
+                <div>
+                  <button
+                    onClick={handleSignIn}
+                    disabled={isSigningIn}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+                  >
+                    {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
+                  </button>
+                  {signInError && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-600 text-sm">{signInError}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {isSignedIn && (
+                <p className="text-sm text-green-600 mt-2">Waiting for FID...</p>
+              )}
+            </div>
           </div>
         ) : mintedTokenId ? (
           <div className="text-center p-8 bg-green-50 rounded-lg shadow-lg">
@@ -319,75 +335,95 @@ export default function MintPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white p-8 rounded-lg shadow-lg">
+          <div className="space-y-6">
+            {/* Sign In Section - กรอบ Sign In */}
+            {!isSignedIn && fid && (
+              <div className="bg-white p-6 rounded-lg shadow-lg border-2 border-blue-200">
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">Sign In with Farcaster</h3>
+                <div className="text-center">
+                  <button
+                    onClick={handleSignIn}
+                    disabled={isSigningIn}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-semibold"
+                  >
+                    {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
+                  </button>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Optional: Sign in to verify your identity
+                  </p>
+                  {signInError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-600 text-sm">{signInError}</p>
+                      <button
+                        onClick={() => setSignInError(null)}
+                        className="mt-2 text-xs text-red-600 hover:underline"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Sign In Status */}
             {isSignedIn && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-700">
                   ✅ Signed in with Farcaster (FID: {fid})
                 </p>
               </div>
             )}
 
-            {/* 3x3 Grid of Art Previews */}
-            {fid && (
-              <div className="mb-8">
-                <div className="grid grid-cols-3 gap-2 mb-6">
-                  {Array.from({ length: 9 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="aspect-square bg-gray-200 rounded overflow-hidden"
-                    >
-                      <canvas
-                        ref={(el) => {
-                          gridRefs.current[index] = el;
-                        }}
-                        width={200}
-                        height={200}
-                        className="w-full h-full"
-                      />
-                    </div>
-                  ))}
+            {/* Mint NFT Section - กรอบ Mint NFT */}
+            <div className="bg-white p-8 rounded-lg shadow-lg border-2 border-purple-200">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800 text-center">Mint NFT</h3>
+
+              {/* 3x3 Grid of Art Previews */}
+              {fid && (
+                <div className="mb-6">
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: 9 }).map((_, index) => (
+                      <div
+                        key={index}
+                        className="aspect-square bg-gray-200 rounded overflow-hidden"
+                      >
+                        <canvas
+                          ref={(el) => {
+                            gridRefs.current[index] = el;
+                          }}
+                          width={200}
+                          height={200}
+                          className="w-full h-full"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Sign In Button (if not signed in but have wallet) */}
-            {!isSignedIn && fid && (
-              <div className="mb-4 text-center">
+              {/* MINT Button */}
+              <div className="flex justify-center">
                 <button
-                  onClick={handleSignIn}
-                  disabled={isSigningIn}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
+                  onClick={handleMint}
+                  disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
+                  className="px-12 py-4 bg-purple-600 text-white rounded-full text-xl font-bold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-lg"
                 >
-                  {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
+                  {isMinting || isPendingWrite || isConfirming
+                    ? "Minting..."
+                    : "MINT"}
                 </button>
-                <p className="mt-2 text-xs text-gray-500">
-                  Optional: Sign in to verify your identity
-                </p>
               </div>
-            )}
 
-            {/* MINT Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={handleMint}
-                disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64}
-                className="px-12 py-4 bg-purple-600 text-white rounded-full text-xl font-bold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-lg"
-              >
-                {isMinting || isPendingWrite || isConfirming
-                  ? "Minting..."
-                  : "MINT"}
-              </button>
+              {/* Mint Error */}
+              {(writeError || txError) && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">
+                    Error: {writeError?.message || txError?.message}
+                  </p>
+                </div>
+              )}
             </div>
-
-            {(writeError || txError) && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm">
-                  Error: {writeError?.message || txError?.message}
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>

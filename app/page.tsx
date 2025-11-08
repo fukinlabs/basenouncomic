@@ -7,8 +7,9 @@ import { sdk } from "@farcaster/miniapp-sdk";
 // AuthResponse interface can be added when integrating auth
 
 export default function Home() {
-  const { isFrameReady, setFrameReady } = useMiniKit();
+  const { setFrameReady } = useMiniKit();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [hasCalledReady, setHasCalledReady] = useState(false);
 
   // Load background image and mark as ready when loaded
   useEffect(() => {
@@ -79,9 +80,10 @@ export default function Home() {
   useEffect(() => {
     // Only call ready when:
     // 1. Image has loaded (or failed to load or timeout)
-    // 2. Frame is not already ready
+    // 2. We haven't called ready yet
     // This prevents jitter and content reflow
-    if (isImageLoaded && !isFrameReady) {
+    if (isImageLoaded && !hasCalledReady) {
+      setHasCalledReady(true);
       // Call both OnchainKit's setFrameReady and Farcaster SDK's ready
       setFrameReady();
       // Call sdk.actions.ready() directly to hide splash screen
@@ -95,7 +97,7 @@ export default function Home() {
       };
       callReady();
     }
-  }, [isImageLoaded, isFrameReady, setFrameReady]);
+  }, [isImageLoaded, hasCalledReady, setFrameReady]);
    
   // Auth can be integrated here later if needed
 
