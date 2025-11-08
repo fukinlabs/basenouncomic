@@ -157,6 +157,8 @@ export default function MintPage() {
 
   // Handle successful mint - extract tokenId from transaction receipt
   useEffect(() => {
+    let isMounted = true;
+    
     const extractTokenId = async () => {
       if (isConfirmed && hash) {
         try {
@@ -171,6 +173,8 @@ export default function MintPage() {
           
           const receipt = await publicClient.getTransactionReceipt({ hash });
           
+          if (!isMounted) return; // Check if component is still mounted
+          
           // Parse MintForFID event to get tokenId
           const mintEvents = parseEventLogs({
             abi: contractABI,
@@ -184,31 +188,50 @@ export default function MintPage() {
             // Type assertion needed because parseEventLogs returns Log type
             const eventArgs = (event as { args?: { tokenId?: bigint } }).args;
             const tokenId = eventArgs?.tokenId?.toString();
-            if (tokenId) {
+            if (tokenId && isMounted) {
               setMintedTokenId(tokenId);
               console.log("Minted tokenId:", tokenId);
-            } else {
-              // Fallback: use FID as tokenId if event parsing fails
-              console.warn("Could not extract tokenId from event, using FID as fallback");
-              setMintedTokenId(fid);
+            } else if (isMounted) {
+              // Fallback: use FID as tokenId if event parsing fails, but validate FID first
+              if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+                console.warn("Could not extract tokenId from event, using FID as fallback");
+                setMintedTokenId(fid.trim());
+              } else {
+                console.error("Cannot use FID as fallback: invalid FID");
+                // Don't set tokenId if FID is invalid
+              }
             }
-          } else {
-            // Fallback: use FID as tokenId if no event found
-            console.warn("No MintForFID event found, using FID as fallback");
-            setMintedTokenId(fid);
+          } else if (isMounted) {
+            // Fallback: use FID as tokenId if no event found, but validate FID first
+            if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+              console.warn("No MintForFID event found, using FID as fallback");
+              setMintedTokenId(fid.trim());
+            } else {
+              console.error("Cannot use FID as fallback: invalid FID");
+            }
           }
         } catch (error) {
           console.error("Error extracting tokenId:", error);
-          // Fallback: use FID as tokenId
-          setMintedTokenId(fid);
+          // Fallback: use FID as tokenId, but validate FID first
+          if (isMounted && fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+            setMintedTokenId(fid.trim());
+          }
         } finally {
-          setIsMinting(false);
+          if (isMounted) {
+            setIsMinting(false);
+          }
         }
       }
     };
     
     extractTokenId();
-  }, [isConfirmed, hash, fid]);
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConfirmed, hash]); // fid is intentionally excluded to prevent unnecessary re-runs
 
 
   const handleMint = async () => {

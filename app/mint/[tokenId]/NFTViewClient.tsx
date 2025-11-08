@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import ArtGenerator from "../../components/ArtGenerator";
 import { minikitConfig } from "../../../minikit.config";
 
@@ -16,32 +17,58 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
   const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Reset states when tokenId changes
+    setImageError(false);
+    setError(null);
+    setMetadata(null);
+    
     const fetchMetadata = async () => {
+      if (!isMounted) return;
+      
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/nft-metadata?tokenId=${tokenId}`);
+        const response = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenId)}`);
+        
+        if (!isMounted) return;
         
         if (!response.ok) {
           // If metadata not found, fallback to ArtGenerator
           console.warn("Metadata not found, using ArtGenerator fallback");
-          setError("Metadata not found, showing generated art");
-          setIsLoading(false);
+          if (isMounted) {
+            setError("Metadata not found, showing generated art");
+            setIsLoading(false);
+          }
           return;
         }
 
         const data = await response.json();
-        setMetadata(data);
+        if (isMounted) {
+          setMetadata(data);
+          setImageError(false); // Reset image error when new metadata is loaded
+        }
       } catch (err) {
         console.error("Error fetching metadata:", err);
-        setError("Failed to load metadata, showing generated art");
+        if (isMounted) {
+          setError("Failed to load metadata, showing generated art");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchMetadata();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, [tokenId]);
 
   return (
@@ -60,15 +87,19 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
                 <p className="text-gray-500">Loading NFT...</p>
               </div>
-            ) : metadata?.image ? (
-              <div className="w-full max-w-md">
-                <img 
-                  src={metadata.image} 
+            ) : metadata?.image && typeof metadata.image === 'string' && metadata.image.trim() !== '' && !imageError ? (
+              <div className="w-full max-w-md relative">
+                <Image
+                  src={metadata.image}
                   alt={metadata.name || `NFT #${tokenId}`}
+                  width={600}
+                  height={600}
                   className="w-full h-auto rounded-lg shadow-md"
-                  onError={(e) => {
+                  unoptimized
+                  onError={() => {
                     // Fallback to ArtGenerator if image fails to load
                     console.error("Image failed to load, using ArtGenerator fallback");
+                    setImageError(true);
                     setError("Image failed to load, showing generated art");
                   }}
                 />

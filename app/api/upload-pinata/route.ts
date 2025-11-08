@@ -43,13 +43,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert base64 to Buffer
-    // Remove data URL prefix if present (e.g., "data:image/png;base64,")
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-    const imageBuffer = Buffer.from(base64Data, "base64");
+    // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/jpeg;base64,")
+    // Support various image formats: png, jpeg, jpg, gif, webp
+    const base64Data = imageBase64.replace(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/, "");
+    
+    // Validate base64 string
+    if (!base64Data || base64Data.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid base64 image data" },
+        { status: 400 }
+      );
+    }
+    
+    let imageBuffer: Buffer;
+    try {
+      imageBuffer = Buffer.from(base64Data, "base64");
+      if (imageBuffer.length === 0) {
+        throw new Error("Empty buffer");
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Failed to decode base64 image data" },
+        { status: 400 }
+      );
+    }
 
     // Create FormData for Pinata
     const formData = new FormData();
-    const blob = new Blob([imageBuffer], { type: "image/png" });
+    // Convert Buffer to Uint8Array for Blob compatibility
+    const uint8Array = new Uint8Array(imageBuffer);
+    const blob = new Blob([uint8Array], { type: "image/png" });
     const filename = `nft-${tokenId || fid || Date.now()}.png`;
     
     formData.append("file", blob, filename);
@@ -92,7 +115,24 @@ export async function POST(request: NextRequest) {
     }
 
     const pinataData = await pinataResponse.json();
+    
+    // Validate response structure
+    if (!pinataData || typeof pinataData !== 'object' || !pinataData.IpfsHash) {
+      console.error("Invalid Pinata response:", pinataData);
+      return NextResponse.json(
+        { error: "Invalid response from Pinata: missing IpfsHash" },
+        { status: 500 }
+      );
+    }
+    
     const ipfsHash = pinataData.IpfsHash;
+    if (typeof ipfsHash !== 'string' || ipfsHash.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid IPFS hash from Pinata" },
+        { status: 500 }
+      );
+    }
+    
     const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
 
     // Create metadata JSON for NFT
@@ -127,9 +167,22 @@ export async function POST(request: NextRequest) {
     let metadataIpfsUrl = null;
 
     if (metadataResponse.ok) {
-      const metadataData = await metadataResponse.json();
-      metadataIpfsHash = metadataData.IpfsHash;
-      metadataIpfsUrl = `https://gateway.pinata.cloud/ipfs/${metadataIpfsHash}`;
+      try {
+        const metadataData = await metadataResponse.json();
+        if (metadataData && metadataData.IpfsHash && typeof metadataData.IpfsHash === 'string') {
+          metadataIpfsHash = metadataData.IpfsHash;
+          metadataIpfsUrl = `https://gateway.pinata.cloud/ipfs/${metadataIpfsHash}`;
+        } else {
+          console.warn("Metadata upload succeeded but response missing IpfsHash:", metadataData);
+        }
+      } catch (error) {
+        console.error("Failed to parse metadata upload response:", error);
+        // Continue without metadata hash - image upload was successful
+      }
+    } else {
+      const errorText = await metadataResponse.text().catch(() => "Unknown error");
+      console.error("Metadata upload failed:", metadataResponse.status, errorText);
+      // Continue without metadata hash - image upload was successful
     }
 
     return NextResponse.json({
