@@ -356,10 +356,10 @@ export default function MintPage() {
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-6">
-            {/* White Square with 3x3 Grid */}
+            {/* White Square with 1x1 Grid */}
             {fid && (
               <div className="w-full bg-white rounded-lg p-4 shadow-lg">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex justify-center">
                   {Array.from({ length: 1 }).map((_, index) => (
                     <div
                       key={index}
