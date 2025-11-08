@@ -263,7 +263,7 @@ export default function MintPage() {
   };
 
   // Generate 9 art previews for the grid
-  const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
+  const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(1).fill(null));
 
   useEffect(() => {
     if (!fid || isNaN(Number(fid))) return;
@@ -399,27 +399,57 @@ export default function MintPage() {
 
             {/* Bottom Button - SIGN IN FARCASTER or MINT */}
             <div className="w-full">
-              {!isSignedIn && fid ? (
-                <button
-                  onClick={handleSignIn}
-                  disabled={isSigningIn}
-                  className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-bold text-lg uppercase"
-                >
-                  {isSigningIn ? "Signing in..." : "SIGN IN FARCASTER"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleMint}
-                  disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
-                  className="w-full px-6 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-bold text-lg uppercase"
-                >
-                  {isMinting || isPendingWrite || isConfirming
-                    ? "Minting..."
-                    : isAlreadyMinted === true
-                    ? "ALREADY MINTED"
-                    : "MINT"}
-                </button>
-              )}
+              <div className="flex justify-center">
+                {!isSignedIn && fid ? (
+                  <button
+                    onClick={handleSignIn}
+                    disabled={isSigningIn}
+                    className="w-full max-w-xs px-8 py-4 rounded-lg disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
+                    style={{
+                      backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
+                      color: '#ffffff',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSigningIn) {
+                        e.currentTarget.style.backgroundColor = '#7e22ce';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSigningIn) {
+                        e.currentTarget.style.backgroundColor = '#9333ea';
+                      }
+                    }}
+                  >
+                    {isSigningIn ? "Signing in..." : "SIGN IN FARCASTER"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleMint}
+                    disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
+                    className="w-full max-w-xs px-8 py-4 rounded-lg disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
+                    style={{
+                      backgroundColor: (isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true) ? '#9ca3af' : '#9333ea',
+                      color: '#ffffff',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                        e.currentTarget.style.backgroundColor = '#7e22ce';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                        e.currentTarget.style.backgroundColor = '#9333ea';
+                      }
+                    }}
+                  >
+                    {isMinting || isPendingWrite || isConfirming
+                      ? "Minting..."
+                      : isAlreadyMinted === true
+                      ? "ALREADY MINTED"
+                      : "MINT"}
+                  </button>
+                )}
+              </div>
 
               {/* Error Messages */}
               {signInError && !isSignedIn && (
