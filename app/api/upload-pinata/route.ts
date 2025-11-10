@@ -72,8 +72,23 @@ export async function POST(request: NextRequest) {
     const formData = new FormData();
     // Convert Buffer to Uint8Array for Blob compatibility
     const uint8Array = new Uint8Array(imageBuffer);
-    const blob = new Blob([uint8Array], { type: "image/png" });
-    const filename = `nft-${tokenId || fid || Date.now()}.png`;
+    
+    // Detect image format from base64 prefix for proper MIME type
+    let imageType = "image/png";
+    let fileExtension = "png";
+    if (imageBase64.startsWith("data:image/jpeg") || imageBase64.startsWith("data:image/jpg")) {
+      imageType = "image/jpeg";
+      fileExtension = "jpg";
+    } else if (imageBase64.startsWith("data:image/webp")) {
+      imageType = "image/webp";
+      fileExtension = "webp";
+    } else if (imageBase64.startsWith("data:image/gif")) {
+      imageType = "image/gif";
+      fileExtension = "gif";
+    }
+    
+    const blob = new Blob([uint8Array], { type: imageType });
+    const filename = `nft-${tokenId || fid || Date.now()}.${fileExtension}`;
     
     formData.append("file", blob, filename);
 
@@ -134,16 +149,19 @@ export async function POST(request: NextRequest) {
     }
     
     const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    const ipfsImageUrl = `ipfs://${ipfsHash}`; // Use IPFS protocol for metadata (NFTScan compatible)
 
-    // Create metadata JSON for NFT
+    // Create metadata JSON for NFT (ERC-721 standard)
+    // Use IPFS protocol URL for image field to ensure NFTScan and other explorers can access it
+    // NFTScan requires proper ERC-721 metadata format with IPFS protocol URLs
     const nftMetadata = {
-      name: `NFT #${tokenId || fid}`,
+      name: `Base Abstract #${tokenId || fid}`,
       description: `Generative art NFT for Farcaster FID ${fid}`,
-      image: ipfsUrl,
-      external_url: `${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/mint/${tokenId || fid}`,
+      image: ipfsImageUrl, // Use ipfs:// protocol for NFTScan compatibility
+      external_url: `${process.env.NEXT_PUBLIC_URL || process.env.NEXT_PUBLIC_ROOT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")}/mint/${tokenId || fid}`,
       attributes: [
-        { trait_type: "FID", value: fid || "unknown" },
-        { trait_type: "Token ID", value: tokenId || "unknown" },
+        { trait_type: "FID", value: String(fid || "unknown") },
+        { trait_type: "Token ID", value: String(tokenId || "unknown") },
       ],
     };
 

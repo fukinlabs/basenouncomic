@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 
-const NFT_CONTRACT_ADDRESS = "0xe81B2748149d089eBdaE6Fee36230D98BA00FF49" as const;
+const NFT_CONTRACT_ADDRESS = "0x7C68Be9f8ff5E30Ac3571631e6c52cB7369274fe" as const;
 
 // Create public client for Base
 const publicClient = createPublicClient({
@@ -37,19 +37,55 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Read tokenURI from contract
-    const tokenURI = await publicClient.readContract({
-      address: NFT_CONTRACT_ADDRESS,
-      abi: [
-        parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
-      ],
-      functionName: "tokenURI",
-      args: [BigInt(tokenIdNum)],
-    });
-
-    if (!tokenURI) {
+    // First, check if NFT exists by trying to get owner
+    // If NFT doesn't exist, ownerOf will throw an error
+    let owner: string;
+    try {
+      owner = await publicClient.readContract({
+        address: NFT_CONTRACT_ADDRESS,
+        abi: [
+          parseAbiItem("function ownerOf(uint256 tokenId) view returns (address)"),
+        ],
+        functionName: "ownerOf",
+        args: [BigInt(tokenIdNum)],
+      });
+    } catch {
+      // NFT doesn't exist (ERC721NonexistentToken error)
       return NextResponse.json(
-        { error: "Token not found or no URI set" },
+        { error: "NFT not found - This token has not been minted yet" },
+        { status: 404 }
+      );
+    }
+
+    // If owner is zero address, NFT doesn't exist
+    if (!owner || owner === "0x0000000000000000000000000000000000000000") {
+      return NextResponse.json(
+        { error: "NFT not found - This token has not been minted yet" },
+        { status: 404 }
+      );
+    }
+
+    // Read tokenURI from contract
+    let tokenURI: string;
+    try {
+      tokenURI = await publicClient.readContract({
+        address: NFT_CONTRACT_ADDRESS,
+        abi: [
+          parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
+        ],
+        functionName: "tokenURI",
+        args: [BigInt(tokenIdNum)],
+      });
+    } catch {
+      return NextResponse.json(
+        { error: "Failed to read tokenURI from contract" },
+        { status: 500 }
+      );
+    }
+
+    if (!tokenURI || tokenURI.trim() === "") {
+      return NextResponse.json(
+        { error: "Token URI not set for this NFT" },
         { status: 404 }
       );
     }
@@ -126,9 +162,68 @@ export async function GET(request: NextRequest) {
     }
 
     // Ensure image URL is properly formatted (convert IPFS to HTTP if needed)
-    if (metadata.image && typeof metadata.image === 'string' && metadata.image.startsWith("ipfs://")) {
-      const ipfsHash = metadata.image.replace("ipfs://", "");
-      metadata.image = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    // Fix incorrect format: "data:image/png;base64,ipfs://..." -> "ipfs://..."
+    if (metadata.image && typeof metadata.image === 'string') {
+      // Handle HTML base64 (data:text/html;base64,...) - convert to PNG image endpoint for Basescan
+      if (metadata.image.startsWith("data:text/html;base64,")) {
+        // Extract FID from metadata to use as seed for fixed HTML base64
+        let fid: string | undefined = undefined;
+        const fidAttr = metadata.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+          attr.trait_type === "FID"
+        );
+        if (fidAttr && fidAttr.value) {
+          fid = String(fidAttr.value);
+        }
+        
+        // Convert HTML base64 to PNG image endpoint for Basescan compatibility
+        // Basescan cannot display HTML base64 directly, so we use our canvas endpoint
+        const rootUrl = process.env.NEXT_PUBLIC_URL || process.env.NEXT_PUBLIC_ROOT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+        metadata.image = `${rootUrl}/api/nft-image/${tokenIdNum}`;
+        console.log(`Converted HTML base64 to PNG image endpoint for Basescan compatibility (token ${tokenIdNum}, FID: ${fid || tokenIdNum})`);
+      }
+      // Fix incorrect format: "data:image/png;base64,<HTML base64>" - detect HTML content
+      else if (metadata.image.startsWith("data:image/png;base64,")) {
+        // Check if the base64 content is actually HTML (starts with "PHRtbWw" = base64 of "<html")
+        const base64Content = metadata.image.replace("data:image/png;base64,", "");
+        if (base64Content.startsWith("PHRtbWw") || base64Content.startsWith("PCFET0NUWVBFIGh0bWw")) {
+          // This is HTML base64 incorrectly labeled as PNG - generate FIXED HTML base64
+          let fid: string | undefined = undefined;
+          const fidAttr = metadata.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+            attr.trait_type === "FID"
+          );
+          if (fidAttr && fidAttr.value) {
+            fid = String(fidAttr.value);
+          }
+          
+          // Convert HTML base64 to PNG image endpoint for Basescan compatibility
+          // Basescan cannot display HTML base64 directly, so we use our canvas endpoint
+          const rootUrl = process.env.NEXT_PUBLIC_URL || process.env.NEXT_PUBLIC_ROOT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+          metadata.image = `${rootUrl}/api/nft-image/${tokenIdNum}`;
+          console.log(`Converted incorrect HTML base64 labeled as PNG to PNG image endpoint for Basescan compatibility (token ${tokenIdNum}, FID: ${fid || tokenIdNum})`);
+        } else {
+          // This is actual PNG base64 - use canvas endpoint
+          const rootUrl = process.env.NEXT_PUBLIC_URL || process.env.NEXT_PUBLIC_ROOT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+          metadata.image = `${rootUrl}/api/nft-image/${tokenIdNum}`;
+          console.log(`Converted PNG base64 to canvas endpoint for Basescan compatibility`);
+        }
+      }
+      // Fix malformed image URL that combines data URI prefix with IPFS
+      // Example: "data:image/png;base64,ipfs://QmcCMM..." -> extract IPFS hash
+      else if (metadata.image.includes("data:image") && metadata.image.includes("ipfs://")) {
+        // Extract IPFS hash from malformed URL
+        const ipfsMatch = metadata.image.match(/ipfs:\/\/([a-zA-Z0-9]+)/);
+        if (ipfsMatch && ipfsMatch[1]) {
+          const ipfsHash = ipfsMatch[1];
+          // Convert to HTTP URL for Basescan compatibility
+          metadata.image = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+          console.log(`Fixed malformed image URL: extracted IPFS hash ${ipfsHash} and converted to HTTP URL`);
+        }
+      }
+      // Convert IPFS protocol URL to HTTP URL for display
+      else if (metadata.image.startsWith("ipfs://")) {
+        const ipfsHash = metadata.image.replace("ipfs://", "");
+        metadata.image = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+      }
     }
 
     return NextResponse.json(metadata);

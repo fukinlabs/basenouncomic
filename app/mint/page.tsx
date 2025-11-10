@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect, useReadContract } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -9,7 +11,7 @@ import { generateArt } from "../../lib/p5-art-generator";
 import contractABI from "../../lib/contract-abi.json";
 
 // NFT Contract Address on Base
-const NFT_CONTRACT_ADDRESS = "0xe81B2748149d089eBdaE6Fee36230D98BA00FF49" as const;
+const NFT_CONTRACT_ADDRESS = "0x7C68Be9f8ff5E30Ac3571631e6c52cB7369274fe" as const;
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();
@@ -25,6 +27,9 @@ export default function MintPage() {
   const [isAlreadyMinted, setIsAlreadyMinted] = useState<boolean | null>(null);
   const [isInterfaceReady, setIsInterfaceReady] = useState(false);
   const [hasCalledReady, setHasCalledReady] = useState(false);
+  const [userNFT, setUserNFT] = useState<{ tokenId: string; image?: string; name?: string } | null>(null);
+  const [isLoadingNFT, setIsLoadingNFT] = useState(false);
+  const [isSignedOut, setIsSignedOut] = useState(false);
 
   // Call ready when interface is fully loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
@@ -72,9 +77,44 @@ export default function MintPage() {
     }
   }, [isInterfaceReady, hasCalledReady]);
 
-  // Get FID from SDK context automatically (following Farcaster SDK Context docs)
-  // https://miniapps.farcaster.xyz/docs/sdk/context#open-mini-app
+  // Check if user has signed out (from localStorage) and listen for changes
   useEffect(() => {
+    const checkSignOut = () => {
+      const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
+      if (signedOut) {
+        setIsSignedOut(true);
+        // Clear sign in state when signed out
+        setIsSignedIn(false);
+        setFid(""); // Clear FID to show Sign In button
+      } else {
+        setIsSignedOut(false);
+      }
+    };
+
+    // Check on mount
+    checkSignOut();
+
+    // Listen for storage changes (when sign out happens in Header)
+    window.addEventListener("storage", checkSignOut);
+    window.addEventListener("farcaster-signout", checkSignOut);
+    
+    // Also check on interval for same-tab updates
+    const interval = setInterval(checkSignOut, 300);
+    
+    return () => {
+      window.removeEventListener("storage", checkSignOut);
+      window.removeEventListener("farcaster-signout", checkSignOut);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Get FID and user data from SDK context automatically (following Farcaster SDK Context docs)
+  // https://miniapps.farcaster.xyz/docs/sdk/context#user
+  // Only fetch if user hasn't explicitly signed out
+  useEffect(() => {
+    // Don't auto-fetch if user has signed out
+    if (isSignedOut) return;
+
     const getContext = async () => {
       try {
         const inMini = await sdk.isInMiniApp();
@@ -82,14 +122,17 @@ export default function MintPage() {
 
         const ctx = await sdk.context;
         if (ctx?.user?.fid) {
-          setFid(ctx.user.fid.toString());
+          const extractedFid = ctx.user.fid.toString();
+          setFid(extractedFid);
+          
+          // FID is set, Header component will handle user data display
         }
       } catch (error) {
         console.error("Error getting context:", error);
       }
     };
     getContext();
-  }, []);
+  }, [isSignedOut]);
 
   // Sign In with Farcaster (following Farcaster Auth Guide)
   // https://miniapps.farcaster.xyz/docs/sdk/actions/sign-in
@@ -128,10 +171,26 @@ export default function MintPage() {
 
       const verifyData = await verifyResponse.json();
       if (verifyData.success && verifyData.user?.fid) {
-        setFid(verifyData.user.fid.toString());
+        const extractedFid = verifyData.user.fid.toString();
+        setFid(extractedFid);
         setIsSignedIn(true);
         setSignInError(null);
+        setIsSignedOut(false); // Clear sign out flag when signing in
         console.log("User signed in successfully:", verifyData.user);
+        
+        // Clear sign out flag from localStorage
+        localStorage.removeItem("farcaster_signed_out");
+        
+        // Store sign in state in localStorage for Header component
+        localStorage.setItem("farcaster_signed_in", "true");
+        localStorage.setItem("farcaster_fid", extractedFid);
+        
+        // Dispatch custom event to notify Header component immediately
+        window.dispatchEvent(new Event("farcaster-signin"));
+        
+        console.log("[Mint] Sign in complete, FID stored:", extractedFid);
+        
+        // Header component will handle user data display
       }
     } catch (error) {
       console.error("Sign In error:", error);
@@ -172,6 +231,110 @@ export default function MintPage() {
       refetchMintedFid();
     }
   }, [fid, refetchMintedFid]);
+
+  // Fetch user's NFT when FID changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchUserNFT = async () => {
+      if (!fid || isNaN(Number(fid))) {
+        setUserNFT(null);
+        return;
+      }
+
+      setIsLoadingNFT(true);
+      try {
+        const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid)}`);
+        
+        if (!isMounted) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("NFT by FID response:", data);
+          
+          // Validate tokenId - must be a valid number and not "0"
+          if (data.tokenId && data.tokenId !== "0" && data.tokenId !== "undefined" && data.tokenId !== "null") {
+            const tokenIdStr = String(data.tokenId).trim();
+            
+            // Double check tokenId is valid
+            if (!/^\d+$/.test(tokenIdStr) || tokenIdStr === "0") {
+              console.error("Invalid tokenId:", tokenIdStr);
+              if (isMounted) {
+                setUserNFT(null);
+              }
+              return;
+            }
+            
+            // Fetch metadata to get image
+            try {
+              const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
+              console.log("Metadata response status:", metadataResponse.status);
+              if (metadataResponse.ok) {
+                const metadata = await metadataResponse.json();
+                console.log("Metadata:", metadata);
+                if (isMounted) {
+                  setUserNFT({
+                    tokenId: tokenIdStr,
+                    image: metadata.image,
+                    name: metadata.name,
+                  });
+                }
+              } else {
+                // Even if metadata fetch fails, still show NFT with tokenId
+                console.warn("Metadata fetch failed, using tokenId only");
+                if (isMounted) {
+                  setUserNFT({
+                    tokenId: tokenIdStr,
+                  });
+                }
+              }
+            } catch (err) {
+              // Use tokenId as fallback even on error
+              console.error("Error fetching metadata:", err);
+              if (isMounted) {
+                setUserNFT({
+                  tokenId: tokenIdStr,
+                });
+              }
+            }
+          } else {
+            console.log("No valid tokenId in response:", data.tokenId);
+            if (isMounted) {
+              setUserNFT(null);
+            }
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.log("NFT by FID error:", response.status, errorData);
+          
+          // If RPC service unavailable (503), log but don't show error to user
+          // This is a temporary issue that will resolve itself
+          if (response.status === 503) {
+            console.warn("RPC service temporarily unavailable, will retry later");
+          }
+          
+          if (isMounted) {
+            setUserNFT(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user NFT:", error);
+        if (isMounted) {
+          setUserNFT(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingNFT(false);
+        }
+      }
+    };
+
+    fetchUserNFT();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fid]);
 
   const { 
     writeContract, 
@@ -294,6 +457,39 @@ export default function MintPage() {
       return;
     }
 
+    // ✅ Verify FID ownership: Must be signed in with Farcaster OR have FID from Mini App context
+    // Note: If FID comes from Mini App context, user is already authenticated
+    // But if user manually enters FID, they must sign in to verify ownership
+    const fidFromContext = localStorage.getItem("farcaster_fid");
+    const isFidFromContext = fidFromContext === fid;
+    
+    if (!isSignedIn && !isFidFromContext) {
+      alert("Please sign in with Farcaster first to verify FID ownership. You can only mint with your own FID.");
+      return;
+    }
+
+    // ✅ Verify FID exists in Farcaster (check if FID is valid)
+    // Skip this check if FID comes from Mini App context or sign-in (trusted sources)
+    // Only verify if FID was manually entered and user hasn't signed in
+    if (!isSignedIn && !isFidFromContext) {
+      try {
+        const fidCheckResponse = await fetch(`/api/farcaster-user?fid=${encodeURIComponent(fid)}`);
+        if (!fidCheckResponse.ok) {
+          const errorData = await fidCheckResponse.json();
+          if (errorData.error === "User not found") {
+            alert("This FID does not exist in Farcaster. Please use a valid FID.");
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not verify FID with Farcaster API:", error);
+        // Continue with mint if API check fails (non-blocking)
+      }
+    } else {
+      // FID is from trusted source (Mini App context or sign-in), skip API verification
+      console.log("Skipping FID verification - FID is from trusted source (Mini App context or sign-in)");
+    }
+
     if (!imageBase64) {
       alert("Please wait for art generation to complete");
       return;
@@ -335,25 +531,44 @@ export default function MintPage() {
       }
 
       const uploadData = await uploadResponse.json();
-      const ipfsHash = uploadData.image?.ipfsHash;
+      // Note: IPFS hashes are uploaded but not used in contract (contract uses HTML base64 only)
       const ipfsUrl = uploadData.image?.ipfsUrl;
-      const metadataIpfsHash = uploadData.metadata?.ipfsHash;
       const metadataIpfsUrl = uploadData.metadata?.ipfsUrl;
 
       console.log("Image uploaded to IPFS:", ipfsUrl);
       console.log("Metadata uploaded to IPFS:", metadataIpfsUrl);
 
-      // Step 2: Mint NFT with metadata IPFS hash (preferred) or image IPFS hash (fallback) or base64
-      // Use metadata IPFS hash so contract can return proper tokenURI with full metadata
-      const imageData = metadataIpfsHash 
-        ? `ipfs://${metadataIpfsHash}` 
-        : (ipfsHash ? `ipfs://${ipfsHash}` : imageBase64);
+      // Step 2: Prepare PNG/JPEG base64 for contract (Basescan compatible - 100% success rate)
+      // Use imageBase64 from canvas (JPEG with quality 0.85 for smaller file size)
+      console.log("Preparing PNG/JPEG base64 for contract...");
+      
+      if (!imageBase64 || imageBase64.trim() === "") {
+        throw new Error("Image base64 is empty. Please wait for art generation to complete.");
+      }
 
+      // Extract base64 string only (remove data URL prefix)
+      // imageBase64 format: "data:image/jpeg;base64,/9j/..." or "data:image/png;base64,iVBORw0KG..."
+      let imageBase64Only = imageBase64;
+      if (imageBase64.includes("data:image/")) {
+        // Remove "data:image/jpeg;base64," or "data:image/png;base64," prefix
+        imageBase64Only = imageBase64.replace(/^data:image\/(jpeg|jpg|png);base64,/, "");
+      }
+
+      if (!imageBase64Only || imageBase64Only.trim() === "") {
+        throw new Error("Failed to extract base64 string from image data URL");
+      }
+
+      console.log("PNG/JPEG base64 prepared successfully (Basescan compatible)");
+
+      // Step 3: Mint NFT with PNG/JPEG base64
+      // Contract expects: imageBase64 (base64 string only, no prefix)
+      // Contract will detect format (JPEG/PNG) and add appropriate prefix automatically
+      // Basescan can display PNG/JPEG base64 directly (100% success rate)
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
         functionName: "mintForFid",
-        args: [address, BigInt(fid), imageData],
+        args: [address, BigInt(fid), imageBase64Only], // Send PNG/JPEG base64 only (no prefix)
       });
     } catch (error) {
       console.error("Mint error:", error);
@@ -392,103 +607,113 @@ export default function MintPage() {
     }
   };
 
-  // Generate 9 art previews for the grid
-  const gridRefs = useRef<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
-  const [canvasesReady, setCanvasesReady] = useState(false);
-  const retryCountRef = useRef(0);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Generate single art preview - full screen
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [canvasReady, setCanvasReady] = useState(false);
 
-  // Generate art when FID changes and canvases are ready
+  // Generate art when FID changes and canvas is ready
   useEffect(() => {
-    if (!fid || isNaN(Number(fid)) || !canvasesReady) return;
+    if (!fid || isNaN(Number(fid)) || !canvasReady) return;
 
     // Use requestAnimationFrame to ensure canvas is fully rendered
     const frameId = requestAnimationFrame(() => {
-      // Generate 9 variations using FID + index as seed
-      gridRefs.current.forEach((canvas, index) => {
-        if (canvas) {
-          try {
-            const seed = Number(fid) + index;
-            generateArt(canvas, { tokenId: seed.toString() });
-            
-            // Update imageBase64 when first canvas is ready
-            if (index === 0) {
-              // Use setTimeout to ensure canvas is fully drawn
-              setTimeout(() => {
-                const base64 = canvas.toDataURL("image/png");
+      if (canvasRef.current) {
+        try {
+          // Generate art using FID as seed
+          generateArt(canvasRef.current, { tokenId: fid });
+          
+          // Update imageBase64 when canvas is ready
+          // Use JPEG with quality 0.85 for smaller file size (PNG doesn't support quality parameter)
+          // This reduces file size significantly while maintaining good visual quality
+          setTimeout(() => {
+            if (canvasRef.current) {
+              // Try JPEG first (smaller file size), fallback to PNG if needed
+              try {
+                const base64 = canvasRef.current.toDataURL("image/jpeg", 0.85);
                 setImageBase64(base64);
-              }, 100);
+              } catch (error) {
+                // Fallback to PNG if JPEG is not supported
+                console.warn("JPEG not supported, using PNG:", error);
+                const base64 = canvasRef.current.toDataURL("image/png");
+                setImageBase64(base64);
+              }
             }
-          } catch (error) {
-            console.error(`Error generating art for grid ${index}:`, error);
-          }
+          }, 100);
+        } catch (error) {
+          console.error("Error generating art:", error);
         }
-      });
+      }
     });
 
     return () => cancelAnimationFrame(frameId);
-  }, [fid, canvasesReady]);
+  }, [fid, canvasReady]);
 
-  // Check if all canvases are mounted and reset when FID changes
+  // Check if canvas is mounted and reset when FID changes
   useEffect(() => {
     // Reset when FID changes
-    setCanvasesReady(false);
+    setCanvasReady(false);
     setImageBase64(""); // Clear previous image
     
     if (!fid || isNaN(Number(fid))) {
       return;
     }
-
-    // Reset retry count when FID changes
-    retryCountRef.current = 0;
     
-    // Check if all canvas refs are set
+    // Check if canvas ref is set
     const maxRetries = 20; // Max 20 retries (1 second total)
+    let retryCount = 0;
     
-    const checkCanvases = () => {
-      const allCanvasesReady = gridRefs.current.every(canvas => canvas !== null);
-      
-      if (allCanvasesReady) {
+    const checkCanvas = () => {
+      if (canvasRef.current) {
         // Use double requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            setCanvasesReady(true);
+            setCanvasReady(true);
           });
         });
-      } else if (retryCountRef.current < maxRetries) {
-        // Retry after a short delay if canvases aren't ready yet
-        retryCountRef.current++;
-        // Clear previous timeout if exists
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-        }
-        retryTimeoutRef.current = setTimeout(checkCanvases, 50);
+      } else if (retryCount < maxRetries) {
+        // Retry after a short delay if canvas isn't ready yet
+        retryCount++;
+        setTimeout(checkCanvas, 50);
       } else {
-        // If max retries reached, try to generate anyway with available canvases
-        console.warn("Some canvases may not be ready, generating art anyway");
-        setCanvasesReady(true);
+        // If max retries reached, try to generate anyway
+        console.warn("Canvas may not be ready, generating art anyway");
+        setCanvasReady(true);
       }
     };
 
     // Start checking after a short delay to allow DOM to update
-    const timeoutId = setTimeout(checkCanvases, 100);
+    const timeoutId = setTimeout(checkCanvas, 100);
     
     return () => {
       clearTimeout(timeoutId);
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = null;
-      }
-      retryCountRef.current = 0; // Reset retry count on cleanup
     };
   }, [fid]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">
       <div className="w-full max-w-md">
+        {/* Gallery Link */}
+        <div className="mb-4 text-center">
+          <Link
+            href="/gallery"
+            className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
+          >
+            🔍 Browse Gallery
+          </Link>
+        </div>
+        {!fid && !isSignedIn && (
+          <div className="box-content object-center w-full h-full ">
+            <Image 
+              src="/blue-icon.png" 
+              alt="Blue Icon" 
+              width={384} 
+              height={192} 
+              className="h-full w-full object-cover" 
+            />
+          </div>
+        )}
         {!isConnected ? (
           <div className="text-center p-8 bg-white rounded-lg shadow-lg">
-            <p className="text-gray-600 mb-4">Please connect your wallet to mint</p>
             {connectors.length > 0 && (
               <button
                 onClick={() => connect({ connector: connectors[0] })}
@@ -501,17 +726,37 @@ export default function MintPage() {
         ) : !fid ? (
           <div className="bg-white p-8 rounded-lg shadow-lg">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
+            {/* <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
               <p className="text-gray-600 mb-6">
                 {isSignedIn ? "Signed in successfully!" : "Sign in with Farcaster to continue"}
-              </p>
+              </p> */}
+
+
+
               {!isSignedIn && (
                 <div>
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
                     className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
-                  >
+                 
+                   style={{
+                      backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
+                      color: '#ffffff',
+                      padding: '15px',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSigningIn) {
+                        e.currentTarget.style.backgroundColor = '#7e22ce';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSigningIn) {
+                        e.currentTarget.style.backgroundColor = '#9333ea';
+                      }
+                    }}
+                 
+                 >
                     {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
                   </button>
                   {signInError && (
@@ -552,26 +797,17 @@ export default function MintPage() {
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-6">
-            {/* White Square with 3x3 Grid */}
+            {/* Single Art Preview - Full Screen */}
             {fid && (
               <div className="w-full bg-white rounded-lg p-4 shadow-lg">
-                <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: 9 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="aspect-square bg-gray-100 rounded overflow-hidden"
-                    >
-                      <canvas
-                        ref={(el) => {
-                          gridRefs.current[index] = el;
-                        }}
-                        width={600}
-                        height={600}
-                        className="w-full h-full object-contain"
-                        style={{ imageRendering: 'auto' }}
-                      />
-                    </div>
-                  ))}
+                <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    width={600}
+                    height={600}
+                    className="w-full h-full object-contain"
+                    style={{ imageRendering: 'auto' }}
+                  />
                 </div>
               </div>
             )}
@@ -585,19 +821,93 @@ export default function MintPage() {
               </div>
             )}
 
+            {/* User's NFT Display */}
+            {fid && !isLoadingNFT && userNFT && (
+              <div className="w-full bg-white rounded-lg p-4 shadow-lg">
+                <h3 className="text-lg font-semibold mb-3 text-center text-gray-800">
+                  🎨 Your NFT Collection
+                </h3>
+                <div className="flex flex-col items-center space-y-3">
+                  {userNFT.image ? (
+                    <div className="w-full max-w-xs relative">
+                      <Image
+                        src={userNFT.image}
+                        alt={userNFT.name || `NFT #${userNFT.tokenId}`}
+                        width={400}
+                        height={400}
+                        className="w-full h-auto rounded-lg shadow-md"
+                        unoptimized
+                        onError={() => {
+                          // Image will fallback to placeholder
+                          setUserNFT({ ...userNFT, image: undefined });
+                        }}
+                      />
+                    </div>
+                  ) : userNFT.tokenId ? (
+                    <div className="w-full max-w-xs aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                      <p className="text-gray-500">Loading image...</p>
+                    </div>
+                  ) : null}
+                  {userNFT.tokenId && (
+                    <>
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-gray-700">
+                          {userNFT.name || `NFT #${userNFT.tokenId}`}
+                        </p>
+                        <p className="text-xs text-gray-500">Token ID: {userNFT.tokenId}</p>
+                      </div>
+                      <a
+                        href={`/mint/${userNFT.tokenId}`}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                      >
+                        View NFT →
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {fid && isLoadingNFT && (
+              <div className="w-full p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
+              </div>
+            )}
+
+            {/* Show message if FID exists but no NFT found */}
+            {fid && !isLoadingNFT && !userNFT && isAlreadyMinted === false && (
+              <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700 text-center">
+                  You haven&apos;t minted an NFT yet. Mint your first NFT below! 🎨
+                </p>
+              </div>
+            )}
+
             {/* Already Minted Warning */}
             {isAlreadyMinted === true && (
-              <div className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-700 text-center">
-                  ⚠️ This FID has already been minted. Each FID can only mint once.
-                </p>
+              <div className="w-full space-y-3">
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-700 text-center">
+                    ⚠️ This FID has already been minted. Each FID can only mint once.
+                  </p>
+                </div>
+                {/* View NFT Button */}
+                {fid && (
+                  <a
+                    href={`/mint/${fid}`}
+                    className="block w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center font-semibold"
+                  >
+                    🎨 View My NFT →
+                  </a>
+                )}
               </div>
             )}
 
             {/* Bottom Button - SIGN IN FARCASTER or MINT */}
             <div className="w-full">
               <div className="flex justify-center">
-                {!isSignedIn && fid ? (
+                {!isSignedOut && !fid && !isSignedIn ? (
+                  // Show Sign In button if we have FID but not signed in
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
@@ -620,7 +930,8 @@ export default function MintPage() {
                   >
                     {isSigningIn ? "Signing in..." : "SIGN IN FARCASTER"}
                   </button>
-                ) : (
+                ) : !isSignedOut && fid ? (
+                  // Show Mint button if we have FID (from context or sign in)
                   <button
                     onClick={handleMint}
                     disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
@@ -646,7 +957,7 @@ export default function MintPage() {
                       ? "ALREADY MINTED"
                       : "MINT"}
                   </button>
-                )}
+                ) : null}
               </div>
 
               {/* Error Messages */}

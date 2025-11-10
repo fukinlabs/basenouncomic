@@ -19,7 +19,7 @@ export const minikitConfig = {
     iconUrl: `${ROOT_URL}/splash.png`,
     splashImageUrl: `${ROOT_URL}/monkey.gif`,
     splashBackgroundColor: "#2f3057",
-    homeUrl: ROOT_URL,
+    homeUrl: `${ROOT_URL}/mint`,
     webhookUrl: `${ROOT_URL}/api/webhook`,
     primaryCategory: "art-creativity",
     tags: ["art", "ai", "generative", "nft"],

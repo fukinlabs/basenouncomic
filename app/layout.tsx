@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { RootProvider } from "./rootProvider";
 import { minikitConfig } from "../minikit.config";
+import Header from "./components/Header";
 
 const ROOT_URL = process.env.NEXT_PUBLIC_URL || 
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
@@ -60,7 +61,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <RootProvider>{children}</RootProvider>
+        <RootProvider>
+          <Header />
+          {children}
+        </RootProvider>
       </body>
     </html>
   );

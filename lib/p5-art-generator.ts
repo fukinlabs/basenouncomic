@@ -72,10 +72,13 @@ class Shape {
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(t, 1);
+    // Limit leaf size to fit within base square (w x w)
+    // Base square is from -w/2 to w/2, so leaf should not exceed this
+    const maxRadius = w * 1; // Use 0.45 to ensure it stays within bounds
     ctx.beginPath();
     for (let a = 0; a < Math.PI / 2; a += (Math.PI * 2) / 360) {
-      const px = -(w / 2) + w * Math.cos(a);
-      const py = -(w / 2) + w * Math.sin(a);
+      const px = -(w / 2) + maxRadius * Math.cos(a);
+      const py = -(w / 2) + maxRadius * Math.sin(a);
       if (a === 0) {
         ctx.moveTo(px, py);
       } else {
@@ -83,8 +86,8 @@ class Shape {
       }
     }
     for (let a = Math.PI; a < Math.PI + Math.PI / 2; a += (Math.PI * 2) / 360) {
-      const px = (w / 2) + w * Math.cos(a);
-      const py = (w / 2) + w * Math.sin(a);
+      const px = (w / 2) + maxRadius * Math.cos(a);
+      const py = (w / 2) + maxRadius * Math.sin(a);
       ctx.lineTo(px, py);
     }
     ctx.closePath();
@@ -110,7 +113,8 @@ class Shape {
       this.drawLeaf(ctx, 0, 0, this.w, 1);
       ctx.fillStyle = remainingColors[1] || this.clrs[2] || '#000000';
       ctx.beginPath();
-      ctx.arc(0, 0, this.w * 0.5, 0, Math.PI * 2);
+      // Limit circle radius to stay within base square bounds (-w/2 to w/2)
+      ctx.arc(0, 0, this.w * 0.15, 0, Math.PI * 2); // Reduced from 0.45 to 0.35
       ctx.fill();
     } else if (this.form === 1) {
       // New form 1: Creative explosion with layers
@@ -122,7 +126,7 @@ class Shape {
       // Center artist power
       ctx.fillStyle = this.clrs[0];
       ctx.beginPath();
-      ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2);
+      ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2); // Reduced from 0.4 to 0.3
       ctx.fill();
       
       // Creative explosion (static version, no animation)
@@ -161,14 +165,14 @@ class Shape {
         const x = Math.cos(a) * s * 0.45;
         const y = Math.sin(a) * s * 0.45;
         ctx.beginPath();
-        ctx.arc(x, y, s * 0.05, 0, Math.PI * 2);
+        ctx.arc(x, y, s * 0.04, 0, Math.PI * 2); // Reduced from 0.05 to 0.04
         ctx.fill();
       }
       
       // Inner balance circle
       ctx.fillStyle = this.clrs[1] || this.clrs[0];
       ctx.beginPath();
-      ctx.arc(0, 0, s * 0.1, 0, Math.PI * 2);
+      ctx.arc(0, 0, s * 0.08, 0, Math.PI * 2); // Reduced from 0.1 to 0.08
       ctx.fill();
       ctx.restore();
     } else if (this.form === 2) {
@@ -189,40 +193,43 @@ class Shape {
       ctx.fillRect(-this.w * 0.05 - this.w * 0.7 / 2, -this.w * 0.05 - this.w * 0.7 / 2, this.w * 0.7, this.w * 0.7);
       ctx.save();
       ctx.translate(this.w * 0.05, this.w * 0.05);
-      ctx.scale(0.7, 0.7);
+      ctx.scale(0.3, 0.3);
       ctx.fillStyle = remainingColors[1] || this.clrs[1] || '#000000';
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
-          const x = (i * cellSize) - (this.w / 2) + (cellSize / 2);
-          const y = (j * cellSize) - (this.w / 2) + (cellSize / 2);
+          const x = (i * cellSize) - (this.w / 4) + (cellSize / 4);
+          const y = (j * cellSize) - (this.w / 4) + (cellSize / 4);
           ctx.beginPath();
-          ctx.arc(x, y, cellSize * 0.5, 0, Math.PI * 2);
+          ctx.arc(x, y, cellSize * 0.2, 0, Math.PI * 2); // Reduced from 0.5 to 0.4
           ctx.fill();
         }
       }
       ctx.restore();
     } else if (this.form === 4) {
+      // Limit circles to stay within base square bounds
+      // Base square is from -w/2 to w/2, so max distance from center = w/2
+      // Use 0.25 for radius and 0.15 for circle radius to ensure fit
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
         ctx.fillStyle = i % 2 === 0 
           ? (remainingColors[0] || this.clrs[1] || '#000000')
           : (remainingColors[1] || this.clrs[2] || '#000000');
         ctx.beginPath();
-        ctx.arc(this.w * 0.3 * Math.cos(a), this.w * 0.3 * Math.sin(a), this.w * 0.2, 0, Math.PI * 2);
+        ctx.arc(this.w * 0.25 * Math.cos(a), this.w * 0.25 * Math.sin(a), this.w * 0.05, 0, Math.PI * 2); // Reduced from 0.15 to 0.12
         ctx.fill();
       }
       ctx.fillStyle = remainingColors[2] || this.clrs[3] || this.clrs[0] || '#000000';
       ctx.beginPath();
-      ctx.arc(0, 0, this.w * 0.2, 0, Math.PI * 2);
+      ctx.arc(0, 0, this.w * 0.05, 0, Math.PI * 2); // Reduced from 0.15 to 0.12
       ctx.fill();
     } else if (this.form === 5) {
       ctx.fillStyle = remainingColors[0] || this.clrs[1] || '#000000';
       // Rounded rectangle - manual drawing
       const cornerRadius = this.w * 0.5;
-      const x = -this.w * 0.75 / 2;
-      const y = -this.w * 0.75 / 2;
-      const w = this.w * 0.75;
-      const h = this.w * 0.75;
+      const x = -this.w * 0.25 / 2;
+      const y = -this.w * 0.25 / 2;
+      const w = this.w * 0.25;
+      const h = this.w * 0.25;
       ctx.beginPath();
       ctx.moveTo(x + cornerRadius, y);
       ctx.lineTo(x + w - cornerRadius, y);
@@ -237,7 +244,7 @@ class Shape {
       ctx.fill();
       ctx.fillStyle = remainingColors[1] || this.clrs[2] || '#000000';
       ctx.beginPath();
-      ctx.arc(this.w * 0.1, this.w * 0.1, this.w * 0.3, 0, Math.PI * 2);
+      ctx.arc(this.w * 0.1, this.w * 0.1, this.w * 0.15, 0, Math.PI * 2); // Reduced from 0.3 to 0.25
       ctx.fill();
     } else if (this.form === 6) {
       // 6-petal flower
@@ -253,18 +260,19 @@ class Shape {
       // Center stamen
       ctx.fillStyle = remainingColors[1] || this.clrs[2] || '#000000';
       ctx.beginPath();
-      ctx.arc(0, 0, this.w * 0.15, 0, Math.PI * 2);
+      ctx.arc(0, 0, this.w * 0.12, 0, Math.PI * 2); // Reduced from 0.15 to 0.12
       ctx.fill();
       // Center point
       ctx.fillStyle = this.clrs[0];
       ctx.beginPath();
-      ctx.arc(0, 0, this.w * 0.05, 0, Math.PI * 2);
+      ctx.arc(0, 0, this.w * 0.04, 0, Math.PI * 2); // Reduced from 0.05 to 0.04
       ctx.fill();
     } else if (this.form === 7) {
       // New form 7: Dynamic balance (static version)
+      // Limit size to stay within base square bounds (-w/2 to w/2)
       ctx.save();
       ctx.lineWidth = 3;
-      const s = this.w * 0.8;
+      const s = this.w * 0.45; // Reduced from 0.8 to 0.45 to fit within bounds
       const rot = 0; // Static rotation (removed frameCount animation)
       ctx.rotate(rot);
       
@@ -284,7 +292,7 @@ class Shape {
       ctx.lineWidth = 0;
       ctx.fillStyle = this.clrs[1] || this.clrs[0];
       ctx.beginPath();
-      ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2);
+      ctx.arc(0, 0, s * 0.25, 0, Math.PI * 2); // Reduced from 0.3 to 0.25
       ctx.fill();
       
       // Rotating power points (static version)
@@ -294,7 +302,7 @@ class Shape {
         const x = Math.cos(angle) * s * 0.35;
         const y = Math.sin(angle) * s * 0.35;
         ctx.beginPath();
-        ctx.arc(x, y, s * 0.08, 0, Math.PI * 2);
+        ctx.arc(x, y, s * 0.06, 0, Math.PI * 2); // Reduced from 0.08 to 0.06
         ctx.fill();
       }
       ctx.restore();

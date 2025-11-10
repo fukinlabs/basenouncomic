@@ -36,11 +36,19 @@ export default function Home() {
     };
   }, []);
 
-  // Get Mini App context (following Farcaster SDK Context docs)
+  // Get Mini App context for debugging (redirect is handled in callReady)
   // https://miniapps.farcaster.xyz/docs/sdk/context#open-mini-app
   useEffect(() => {
     const getContext = async () => {
       try {
+        const inMini = await sdk.isInMiniApp();
+        
+        // If opened in Mini App, redirect is handled after ready() is called
+        // (see callReady function above)
+        if (inMini) {
+          return;
+        }
+        
         const ctx = await sdk.context;
         
         // Log context for debugging
@@ -77,6 +85,7 @@ export default function Home() {
   // Call ready when interface is fully loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
   // Wait for your app to be ready, then call sdk.actions.ready()
+  // This hides the splash screen and allows redirect to /mint
   useEffect(() => {
     // Only call ready when:
     // 1. Image has loaded (or failed to load or timeout)
@@ -91,6 +100,14 @@ export default function Home() {
       const callReady = async () => {
         try {
           await sdk.actions.ready();
+          // After splash screen is hidden, check if we need to redirect
+          const inMini = await sdk.isInMiniApp();
+          if (inMini) {
+            // Small delay to ensure smooth transition after splash screen is hidden
+            setTimeout(() => {
+              window.location.href = "/mint";
+            }, 100);
+          }
         } catch (error) {
           console.error("Error calling sdk.actions.ready():", error);
         }
@@ -119,19 +136,27 @@ export default function Home() {
       {/* Overlay for better button visibility (optional) */}
       <div className="absolute inset-0 bg-[#2f3057]/30" />
       
-      {/* Content - Button at bottom */}
+      {/* Content - Buttons at bottom */}
       <div className="relative flex-1 flex items-end justify-center pb-8 px-4 z-20">
         {!isImageLoaded ? (
           <div className="w-full max-w-xs px-8 py-4 bg-gray-600 text-white rounded-lg font-sans text-lg font-semibold text-center">
             Loading...
           </div>
         ) : (
-          <Link
-            href="/mint"
-            className="w-full max-w-xs px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center block"
-          >
-            🎨 Mint NFT
-          </Link>
+          <div className="w-full max-w-xs space-y-3">
+            <Link
+              href="/mint"
+              className="w-full px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center block"
+            >
+              🎨 Mint NFT
+            </Link>
+            <Link
+              href="/gallery"
+              className="w-full px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center block"
+            >
+              🔍 Browse Gallery
+            </Link>
+          </div>
         )}
       </div>
     </main>

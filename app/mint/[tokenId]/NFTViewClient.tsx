@@ -19,15 +19,23 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
   const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageError, setImageError] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [fid, setFid] = useState<string | undefined>(undefined);
+  const [farcasterUser, setFarcasterUser] = useState<{
+    username?: string;
+    displayName?: string;
+    bio?: string;
+    avatarUrl?: string;
+    followersCount?: number;
+    followingCount?: number;
+    castsCount?: number;
+  } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     
     // Reset states when tokenId changes
-    setImageError(false);
     setError(null);
     setMetadata(null);
     
@@ -41,11 +49,20 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         if (!isMounted) return;
         
         if (!response.ok) {
-          // If metadata not found, fallback to ArtGenerator
-          console.warn("Metadata not found, using ArtGenerator fallback");
-          if (isMounted) {
-            setError("Metadata not found, showing generated art");
-            setIsLoading(false);
+          // If metadata not found, check if it's a 404 (NFT doesn't exist)
+          if (response.status === 404) {
+            const errorData = await response.json().catch(() => ({}));
+            if (isMounted) {
+              setError(errorData.error || "NFT not found - This token has not been minted yet");
+              setIsLoading(false);
+            }
+          } else {
+            // Other errors
+            console.warn("Metadata not found, using ArtGenerator fallback");
+            if (isMounted) {
+              setError("Failed to load metadata");
+              setIsLoading(false);
+            }
           }
           return;
         }
@@ -53,7 +70,29 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         const data = await response.json();
         if (isMounted) {
           setMetadata(data);
-          setImageError(false); // Reset image error when new metadata is loaded
+          // Extract FID from metadata attributes to use as seed for art generation
+          const fidAttr = data.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+            attr.trait_type === "FID"
+          );
+          if (fidAttr && fidAttr.value) {
+            const extractedFid = String(fidAttr.value);
+            setFid(extractedFid);
+            
+            // Fetch Farcaster user data
+            if (extractedFid) {
+              fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
+                .then((userRes) => userRes.ok ? userRes.json() : null)
+                .then((userData) => {
+                  if (isMounted && userData?.user) {
+                    setFarcasterUser(userData.user);
+                  }
+                })
+                .catch((err) => {
+                  console.warn("Error fetching Farcaster user:", err);
+                  // Don't show error, just skip user data
+                });
+            }
+          }
         }
       } catch (err) {
         console.error("Error fetching metadata:", err);
@@ -130,29 +169,73 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
                 <p className="text-gray-500">Loading NFT...</p>
               </div>
-            ) : metadata?.image && typeof metadata.image === 'string' && metadata.image.trim() !== '' && !imageError ? (
-              <div className="w-full max-w-md relative">
-                <Image
-                  src={metadata.image}
-                  alt={metadata.name || `NFT #${tokenId}`}
-                  width={600}
-                  height={600}
-                  className="w-full h-auto rounded-lg shadow-md"
-                  unoptimized
-                  onError={() => {
-                    // Fallback to ArtGenerator if image fails to load
-                    console.error("Image failed to load, using ArtGenerator fallback");
-                    setImageError(true);
-                    setError("Image failed to load, showing generated art");
-                  }}
-                />
+            ) : error && error.includes("not been minted") ? (
+              <div className="w-full h-96 bg-red-50 rounded-lg flex items-center justify-center border-2 border-red-200">
+                <div className="text-center p-8">
+                  <p className="text-2xl mb-4">❌</p>
+                  <p className="text-lg font-semibold text-red-800 mb-2">NFT Not Found</p>
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
               </div>
             ) : (
-              <ArtGenerator tokenId={tokenId} />
+              <div className="w-full max-w-md relative">
+                {isLoading ? (
+                  <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <p className="text-gray-500">Loading art...</p>
+                  </div>
+                ) : (
+                  <>
+                    <ArtGenerator tokenId={tokenId} fid={fid} width={600} height={600} />
+                    {!fid && metadata && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                        ⚠️ Warning: FID not found in metadata, using Token ID as seed. Art may not match minted version.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
           <div className="text-left">
             <h2 className="text-xl font-semibold mb-2">Token ID: {tokenId}</h2>
+            
+            {/* Farcaster User Info */}
+            {farcasterUser && (
+              <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-3 mb-2">
+                  {farcasterUser.avatarUrl && (
+                    <Image 
+                      src={farcasterUser.avatarUrl} 
+                      alt={farcasterUser.displayName || farcasterUser.username || "User"}
+                      width={48}
+                      height={48}
+                      className="w-12 h-12 rounded-full"
+                      unoptimized
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-lg font-semibold text-purple-900">
+                      {farcasterUser.displayName || farcasterUser.username || `FID: ${fid}`}
+                    </h3>
+                    {farcasterUser.username && (
+                      <p className="text-sm text-purple-600">@{farcasterUser.username}</p>
+                    )}
+                  </div>
+                </div>
+                {farcasterUser.bio && (
+                  <p className="text-sm text-purple-800 mt-2">{farcasterUser.bio}</p>
+                )}
+                <div className="flex gap-4 mt-2 text-xs text-purple-600">
+                  {farcasterUser.followersCount !== undefined && (
+                    <span>👥 {farcasterUser.followersCount} followers</span>
+                  )}
+                  {farcasterUser.castsCount !== undefined && (
+                    <span>📝 {farcasterUser.castsCount} casts</span>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {metadata?.attributes && metadata.attributes.length > 0 && (
               <div className="mb-4">
                 <h3 className="text-lg font-semibold mb-2">Attributes:</h3>
@@ -169,7 +252,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                 </div>
               </div>
             )}
-            {error && (
+            {error && !error.includes("not been minted") && (
               <div className="bg-yellow-50 p-4 rounded-lg mb-4">
                 <p className="text-sm text-yellow-800">{error}</p>
               </div>

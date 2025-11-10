@@ -51,7 +51,7 @@ app/
 
 ## Smart Contract Integration
 
-สัญญาที่ใช้: `0xe81B2748149d089eBdaE6Fee36230D98BA00FF49` (Base Mainnet)
+สัญญาที่ใช้: `0x7C68Be9f8ff5E30Ac3571631e6c52cB7369274fe` (Base Mainnet)
 
 Function: `mintForFid(address to, uint256 fid)`
 
@@ -114,5 +114,5 @@ NEXT_PUBLIC_ROOT_URL=http://localhost:3000  # หรือ production URL
 ## เอกสารอ้างอิง
 
 - [Farcaster Mini Apps Sharing Guide](https://miniapps.farcaster.xyz/docs/guides/sharing)
-- [BaseScan Contract](https://basescan.org/address/0xe81b2748149d089ebdae6fee36230d98ba00ff49#code)
+- [BaseScan Contract](https://basescan.org/address/0x7C68Be9f8ff5E30Ac3571631e6c52cB7369274fe#code)
 
