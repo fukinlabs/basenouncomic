@@ -46,9 +46,8 @@ export async function GET(
     }
 
     // First, check if NFT exists
-    let owner: string;
     try {
-      owner = await publicClient.readContract({
+      await publicClient.readContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: [
           parseAbiItem("function ownerOf(uint256 tokenId) view returns (address)"),
