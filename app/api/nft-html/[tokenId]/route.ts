@@ -3,7 +3,7 @@ import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 import { generateHTMLCanvasBase64 } from "../../../../lib/generate-html-canvas";
 
-const NFT_CONTRACT_ADDRESS = "0x7C68Be9f8ff5E30Ac3571631e6c52cB7369274fe" as const;
+const NFT_CONTRACT_ADDRESS = "0x007476B27457Ae45C2C5fB30B4E26844E2B5387A" as const;
 
 // Create public client for Base
 const publicClient = createPublicClient({

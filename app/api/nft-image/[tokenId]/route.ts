@@ -4,7 +4,7 @@ import { generateArt } from "../../../../lib/p5-art-generator";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 
-const NFT_CONTRACT_ADDRESS = "0x7C68Be9f8ff5E30Ac3571631e6c52cB7369274fe" as const;
+const NFT_CONTRACT_ADDRESS = "0x007476B27457Ae45C2C5fB30B4E26844E2B5387A" as const;
 
 // Create public client for Base
 const publicClient = createPublicClient({
@@ -90,8 +90,8 @@ export async function GET(
     }
 
     // Generate canvas art using FID as seed (matches contract generation), or tokenId as fallback
-    // Create canvas using node-canvas
-    const canvas = createCanvas(600, 600);
+    // Create canvas using node-canvas (reduced to 200x200 for minimum file size)
+    const canvas = createCanvas(200, 200);
     
     // Generate art on canvas
     // Use FID as seed if available (matches contract), otherwise use tokenId
@@ -99,13 +99,13 @@ export async function GET(
     try {
       generateArt(canvas as unknown as HTMLCanvasElement, { tokenId: seed });
       
-      // Convert canvas to JPEG buffer with quality 0.85 for smaller file size
-      // JPEG provides better compression than PNG for this type of art (typically 50-70% smaller)
-      const buffer = canvas.toBuffer("image/jpeg", { quality: 0.85 });
+      // Convert canvas to PNG buffer (200x200 for minimum file size)
+      // PNG format with 200x200 resolution = smallest possible file size
+      const buffer = canvas.toBuffer("image/png");
       
       // Return image with proper content type
       const headers = new Headers();
-      headers.set("Content-Type", "image/jpeg");
+      headers.set("Content-Type", "image/png");
       headers.set("Cache-Control", "public, immutable, max-age=31536000");
       
       return new NextResponse(buffer, { headers });
