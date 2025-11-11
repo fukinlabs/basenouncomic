@@ -729,18 +729,18 @@ export default function MintPage() {
           </div>
         )}
         {!isConnected ? (
-          <div className="text-center p-8 rounded-lg shadow-lg">
+          <div className="text-center p-8 rounded-full shadow-lg">
             {connectors.length > 0 && (
               <button
                 onClick={() => connect({ connector: connectors[0] })}
-                className="h-12 w-48 p-6 py-3 nf_m bg-purple-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="h-12 w-48 p-6 py-3 nf_m bg-purple-600 text-white rounded-full hover:bg-blue-700 transition-colors"
               >
                 Connect Wallet
               </button>
             )}
           </div>
         ) : !fid ? (
-          <div className="  p-8 rounded-lg shadow-lg">
+          <div className="  p-8 rounded-full shadow-lg">
             <div className="text-center">
             {/* <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
               <p className="text-gray-600 mb-6">
@@ -754,7 +754,7 @@ export default function MintPage() {
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
-                    className="px-8 py-3 bg-blue-600 nf_m text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+                    className="px-8 py-3 bg-blue-600 nf_m text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
                  
                    style={{
                       backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
@@ -776,7 +776,7 @@ export default function MintPage() {
                     {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
                   </button>
                   {signInError && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-full">
                       <p className="text-red-600 text-sm">{signInError}</p>
                     </div>
                   )}
@@ -788,7 +788,7 @@ export default function MintPage() {
             </div>
           </div>
         ) : mintedTokenId ? (
-          <div className="text-center p-8 bg-green-50 rounded-lg shadow-lg">
+          <div className="text-center p-8 bg-green-50 rounded-full shadow-lg">
             <div className="mb-4">
               <div className="text-6xl mb-4">✅</div>
               <h2 className="text-2xl font-bold mb-2">NFT Minted Successfully!</h2>
@@ -798,7 +798,7 @@ export default function MintPage() {
             </div>
             <button
               onClick={handleShare}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
             >
               Share on Farcaster
             </button>
@@ -815,7 +815,7 @@ export default function MintPage() {
           <div className="flex flex-col items-center space-y-6">
             {/* Single Art Preview - Full Screen */}
             {fid && (
-              <div className="w-full bg-white rounded-lg p-4 shadow-lg">
+              <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                   <canvas
                     ref={canvasRef}
@@ -830,7 +830,7 @@ export default function MintPage() {
 
             {/* Sign In Status (hidden when not signed in) */}
             {isSignedIn && (
-              <div className="w-full p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="w-full p-3 bg-green-50 border border-green-200 rounded-full">
                 <p className="text-sm text-green-700 text-center">
                   ✅ Signed in with Farcaster (FID: {fid})
                 </p>
@@ -839,7 +839,7 @@ export default function MintPage() {
 
             {/* User's NFT Display */}
             {fid && !isLoadingNFT && userNFT && (
-              <div className="w-full bg-white rounded-lg p-4 shadow-lg">
+              <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <h3 className="text-lg font-semibold mb-3 text-center text-gray-800">
                   🎨 Your NFT Collection
                 </h3>
@@ -851,7 +851,7 @@ export default function MintPage() {
                         alt={userNFT.name || `NFT #${userNFT.tokenId}`}
                         width={400}
                         height={400}
-                        className="w-full h-auto rounded-lg shadow-md"
+                        className="w-full h-auto rounded-full shadow-md"
                         unoptimized
                         onError={() => {
                           // Image will fallback to placeholder
@@ -860,7 +860,7 @@ export default function MintPage() {
                       />
                     </div>
                   ) : userNFT.tokenId ? (
-                    <div className="w-full max-w-xs aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="w-full max-w-xs aspect-square bg-gray-100 rounded-full flex items-center justify-center">
                       <p className="text-gray-500">Loading image...</p>
                     </div>
                   ) : null}
@@ -874,7 +874,7 @@ export default function MintPage() {
                       </div>
                       <a
                         href={`/mint/${userNFT.tokenId}`}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-sm font-semibold"
                       >
                         View NFT →
                       </a>
@@ -885,14 +885,14 @@ export default function MintPage() {
             )}
 
             {fid && isLoadingNFT && (
-              <div className="w-full p-4 bg-gray-50 rounded-lg">
+              <div className="w-full p-4 bg-gray-50 rounded-full">
                 <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
               </div>
             )}
 
             {/* Show message if FID exists but no NFT found */}
             {fid && !isLoadingNFT && !userNFT && isAlreadyMinted === false && (
-              <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="nf_m  w-full p-4 bg-blue-50 border border-blue-200 rounded-full">
                 <p className="text-sm text-blue-700 text-center">
                   You haven&apos;t minted an NFT yet. Mint your first NFT below! 🎨
                 </p>
@@ -902,7 +902,7 @@ export default function MintPage() {
             {/* Already Minted Warning */}
             {isAlreadyMinted === true && (
               <div className="w-full space-y-3">
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-full">
                   <p className="text-sm text-yellow-700 text-center">
                     ⚠️ This FID has already been minted. Each FID can only mint once.
                   </p>
@@ -911,7 +911,7 @@ export default function MintPage() {
                 {fid && (
                   <a
                     href={`/mint/${fid}`}
-                    className="block w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center font-semibold"
+                    className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
                   >
                     🎨 View My NFT →
                   </a>
@@ -927,7 +927,7 @@ export default function MintPage() {
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
-                    className="w-full max-w-xs px-8 py-4 rounded-lg disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
+                    className="w-full max-w-xs px-8 py-4 rounded-full disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
                     style={{
                       backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
                       color: '#ffffff',
@@ -951,7 +951,7 @@ export default function MintPage() {
                   <button
                     onClick={handleMint}
                     disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
-                    className="w-full max-w-xs px-8 py-4 rounded-lg disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
+                    className="h-12 w-48  nf_m max-w-xs px-8 py-4 rounded-full disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
                     style={{
                       backgroundColor: (isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true) ? '#9ca3af' : '#9333ea',
                       color: '#ffffff',
@@ -978,7 +978,7 @@ export default function MintPage() {
 
               {/* Error Messages */}
               {signInError && !isSignedIn && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-full">
                   <p className="text-red-600 text-sm text-center">{signInError}</p>
                   <button
                     onClick={() => setSignInError(null)}
@@ -1003,7 +1003,7 @@ export default function MintPage() {
                 }
                 
                 return (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-full">
                     <p className="text-red-600 text-sm text-center">
                       Error: {errorMessage}
                     </p>
