@@ -108,10 +108,14 @@ export async function POST(request: NextRequest) {
     const pinataHeaders: HeadersInit = hasJWT
       ? {
           Authorization: `Bearer ${pinataJWT}`,
+          // Assign uploads to specific Pinata Group
+          "x-pinata-group-id": "90b37ada-51bc-4119-b7d7-afac43f345ae",
         }
       : {
           pinata_api_key: pinataApiKey!,
           pinata_secret_api_key: pinataSecretKey!,
+          // Assign uploads to specific Pinata Group
+          "x-pinata-group-id": "90b37ada-51bc-4119-b7d7-afac43f345ae",
         };
 
     const pinataResponse = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {

@@ -3,18 +3,32 @@
 export interface ArtConfig {
   tokenId: string;
   seed?: number;
+  maxSupply?: number; // Optional: Maximum supply limit for validation
+  currentSupply?: number; // Optional: Current supply for validation
+}
+
+export interface SupplyInfo {
+  current: number;
+  max: number;
+  remaining: number;
+  canMint: boolean;
 }
 
 // Seeded random number generator
+// Ensures deterministic but unique art for each tokenId
 class SeededRandom {
   private seed: number;
+  private callCount: number; // Track number of calls for additional entropy
 
   constructor(seed: number) {
     this.seed = seed;
+    this.callCount = 0;
   }
 
   random(): number {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
+    this.callCount++;
+    // Use callCount as additional entropy to ensure uniqueness
+    this.seed = (this.seed * 9301 + 49297 + this.callCount) % 233280;
     return this.seed / 233280;
   }
 
@@ -358,7 +372,25 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   const colors = ['#0000FF', '#FF0000', '#ff6392', '#FCBA3A', '#000000', '#f0f0f0'];
   
   // Use tokenId as seed for deterministic generation
-  const seed = parseInt(config.tokenId) || 0;
+  // Each unique tokenId will generate unique art
+  // If custom seed is provided, use it; otherwise use tokenId
+  const baseSeed = config.seed !== undefined ? config.seed : parseInt(config.tokenId) || 0;
+  
+  // Add additional entropy to ensure uniqueness
+  // Hash tokenId string to get more unique seed
+  let seed = baseSeed;
+  if (config.tokenId) {
+    // Simple hash function to add entropy
+    let hash = 0;
+    for (let i = 0; i < config.tokenId.length; i++) {
+      const char = config.tokenId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    // Combine base seed with hash for more uniqueness
+    seed = (baseSeed * 1000000 + Math.abs(hash)) % 2147483647; // Use large prime for better distribution
+  }
+  
   const rng = new SeededRandom(seed);
 
   const cellCount = 3;
@@ -394,4 +426,208 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
   for (const shape of shapes) {
     shape.show(ctx);
   }
+}
+
+/**
+ * Render once (no animation) helper.
+ * Ensures canvas size is set, then generates art a single time.
+ * Equivalent to p5.js setup()+noLoop() single-frame render.
+ */
+export function generateArtNoLoop(
+  canvas: HTMLCanvasElement,
+  config: ArtConfig,
+  size: number = 600
+): void {
+  if (!canvas.width || !canvas.height) {
+    canvas.width = size;
+    canvas.height = size;
+  }
+  generateArt(canvas, config);
+}
+
+/**
+ * Generate WebP image from art configuration
+ * @param config Art configuration with tokenId
+ * @param size Image size (default: 600)
+ * @returns Promise resolving to WebP data URL
+ */
+export async function generateWebP(config: ArtConfig, size: number = 600): Promise<string> {
+  // Create canvas element
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  
+  // Generate art on canvas
+  generateArt(canvas, config);
+  
+  // Convert canvas to WebP
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Failed to generate WebP blob'));
+          return;
+        }
+        
+        // Convert blob to data URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      },
+      'image/webp',
+      0.92 // Quality: 0.92 (92%)
+    );
+  });
+}
+
+/**
+ * Generate WebP as base64 string (for browser)
+ * @param config Art configuration with tokenId
+ * @param size Image size (default: 600)
+ * @returns Promise resolving to base64 string (without data URL prefix)
+ */
+export async function generateWebPBase64(config: ArtConfig, size: number = 600): Promise<string> {
+  // For browser environment
+  const dataUrl = await generateWebP(config, size);
+  
+  // Remove data URL prefix: "data:image/webp;base64,"
+  const base64 = dataUrl.replace(/^data:image\/webp;base64,/, '');
+  return base64;
+}
+
+/**
+ * Generate WebP for Node.js/server-side (using node-canvas)
+ * @param config Art configuration with tokenId
+ * @param size Image size (default: 600)
+ * @returns Promise resolving to WebP buffer
+ */
+export async function generateWebPNode(config: ArtConfig, size: number = 600): Promise<Buffer> {
+  // Check if we're in Node.js environment
+  if (typeof window !== 'undefined') {
+    throw new Error('generateWebPNode can only be used in Node.js environment');
+  }
+
+  // Dynamic import for node-canvas (only in Node.js)
+  const { createCanvas } = await import('canvas');
+  
+  // Create canvas
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+  
+  // Create a mock HTMLCanvasElement-like object
+  const mockCanvas = {
+    width: size,
+    height: size,
+    getContext: () => ctx,
+  } as unknown as HTMLCanvasElement;
+  
+  // Generate art on canvas
+  generateArt(mockCanvas, config);
+  
+  // Convert to WebP buffer
+  // Note: node-canvas may not support WebP in all environments
+  // Fallback to PNG if WebP is not available
+  try {
+    // Type assertion needed because node-canvas types may not include WebP
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const canvasWithWebP = canvas as any;
+    return canvasWithWebP.toBuffer('image/webp', { quality: 0.92 });
+  } catch {
+    // Fallback to PNG if WebP is not supported
+    console.warn('WebP not supported, falling back to PNG');
+    return canvas.toBuffer('image/png');
+  }
+}
+
+/**
+ * Generate WebP base64 for Node.js/server-side
+ * @param config Art configuration with tokenId
+ * @param size Image size (default: 600)
+ * @returns Promise resolving to base64 string (without data URL prefix)
+ */
+export async function generateWebPBase64Node(config: ArtConfig, size: number = 600): Promise<string> {
+  const buffer = await generateWebPNode(config, size);
+  return buffer.toString('base64');
+}
+
+/**
+ * Validate supply before generating art
+ * @param config Art configuration with supply info
+ * @returns SupplyInfo with validation result
+ */
+export function validateSupply(config: ArtConfig): SupplyInfo {
+  const maxSupply = config.maxSupply ?? Infinity;
+  const currentSupply = config.currentSupply ?? 0;
+  const remaining = Math.max(0, maxSupply - currentSupply);
+  const canMint = remaining > 0 && currentSupply < maxSupply;
+
+  return {
+    current: currentSupply,
+    max: maxSupply,
+    remaining,
+    canMint,
+  };
+}
+
+/**
+ * Generate art with supply validation
+ * Throws error if supply limit reached
+ * @param canvas HTMLCanvasElement
+ * @param config Art configuration with supply info
+ * @throws Error if supply limit reached
+ */
+export function generateArtWithSupplyCheck(canvas: HTMLCanvasElement, config: ArtConfig): void {
+  // Validate supply if maxSupply is provided
+  if (config.maxSupply !== undefined) {
+    const supplyInfo = validateSupply(config);
+    if (!supplyInfo.canMint) {
+      throw new Error(`Maximum supply reached: ${supplyInfo.current} / ${supplyInfo.max}`);
+    }
+  }
+
+  // Generate art normally
+  generateArt(canvas, config);
+}
+
+/**
+ * Generate WebP with supply validation
+ * @param config Art configuration with supply info
+ * @param size Image size (default: 600)
+ * @returns Promise resolving to WebP data URL
+ * @throws Error if supply limit reached
+ */
+export async function generateWebPWithSupplyCheck(config: ArtConfig, size: number = 600): Promise<string> {
+  // Validate supply if maxSupply is provided
+  if (config.maxSupply !== undefined) {
+    const supplyInfo = validateSupply(config);
+    if (!supplyInfo.canMint) {
+      throw new Error(`Maximum supply reached: ${supplyInfo.current} / ${supplyInfo.max}`);
+    }
+  }
+
+  // Generate WebP normally
+  return generateWebP(config, size);
+}
+
+/**
+ * Generate WebP base64 with supply validation
+ * @param config Art configuration with supply info
+ * @param size Image size (default: 600)
+ * @returns Promise resolving to base64 string (without data URL prefix)
+ * @throws Error if supply limit reached
+ */
+export async function generateWebPBase64WithSupplyCheck(config: ArtConfig, size: number = 600): Promise<string> {
+  // Validate supply if maxSupply is provided
+  if (config.maxSupply !== undefined) {
+    const supplyInfo = validateSupply(config);
+    if (!supplyInfo.canMint) {
+      throw new Error(`Maximum supply reached: ${supplyInfo.current} / ${supplyInfo.max}`);
+    }
+  }
+
+  // Generate WebP base64 normally
+  return generateWebPBase64(config, size);
 }

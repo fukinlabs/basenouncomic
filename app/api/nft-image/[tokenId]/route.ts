@@ -4,7 +4,7 @@ import { generateArt } from "../../../../lib/p5-art-generator";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 
-const NFT_CONTRACT_ADDRESS = "0x007476B27457Ae45C2C5fB30B4E26844E2B5387A" as const;
+const NFT_CONTRACT_ADDRESS = "0x6bD2277D11be1C4CE5Dc9B9682CE9E1cf8326f87" as const;
 
 // Create public client for Base
 const publicClient = createPublicClient({
@@ -90,8 +90,8 @@ export async function GET(
     }
 
     // Generate canvas art using FID as seed (matches contract generation), or tokenId as fallback
-    // Create canvas using node-canvas (reduced to 200x200 for minimum file size)
-    const canvas = createCanvas(200, 200);
+    // Create canvas using node-canvas (reduced to 450x450 for minimum file size)
+    const canvas = createCanvas(450, 450);
     
     // Generate art on canvas
     // Use FID as seed if available (matches contract), otherwise use tokenId
@@ -103,12 +103,15 @@ export async function GET(
       // PNG format with 200x200 resolution = smallest possible file size
       const buffer = canvas.toBuffer("image/png");
       
+      // Convert Buffer to Uint8Array for NextResponse compatibility
+      const uint8Array = new Uint8Array(buffer);
+      
       // Return image with proper content type
       const headers = new Headers();
       headers.set("Content-Type", "image/png");
       headers.set("Cache-Control", "public, immutable, max-age=31536000");
       
-      return new NextResponse(buffer, { headers });
+      return new NextResponse(uint8Array, { headers });
     } catch (error) {
       console.error("Error generating canvas art:", error);
       // Fallback: return 404 if art generation fails
