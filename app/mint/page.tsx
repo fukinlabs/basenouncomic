@@ -11,7 +11,7 @@ import { generateArt } from "../../lib/p5-art-generator";
 import contractABI from "../../lib/contract-abi.json";
 
 // NFT Contract Address on Base
-const NFT_CONTRACT_ADDRESS = "0x6bD2277D11be1C4CE5Dc9B9682CE9E1cf8326f87" as const;
+const NFT_CONTRACT_ADDRESS = "0x03Fa16B149D2a4E1BDBF65d0bDf4284C65557000" as const;
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();
@@ -590,16 +590,12 @@ export default function MintPage() {
         console.log("Using compressed base64 (gas: ~400,000-500,000, still much lower than original)");
       }
 
-      // Step 3: Mint NFT with IPFS hash (preferred) or compressed base64 (fallback)
-      // Contract expects: IPFS hash (ipfs://...) or base64 string (no prefix)
-      // Contract will detect format and add appropriate prefix automatically
-      // IPFS hash = lowest gas cost (~120,000 gas)
-      // Compressed base64 = higher gas cost (~400,000-500,000 gas) but still much lower than original
+      // Step 3: Call mint(to, fid, imageBase64) directly (no signature)
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
-        functionName: "mintForFid",
-        args: [address, BigInt(fid), imageData], // Send IPFS hash or base64
+        functionName: "mint",
+        args: [address, BigInt(fid), imageData],
       });
     } catch (error) {
       console.error("Mint error:", error);
