@@ -90,8 +90,8 @@ export async function GET(
     }
 
     // Generate canvas art using FID as seed (matches contract generation), or tokenId as fallback
-    // Create canvas using node-canvas (reduced to 450x450 for minimum file size)
-    const canvas = createCanvas(450, 450);
+    // Create canvas using node-canvas (600x600 for higher quality)
+    const canvas = createCanvas(600, 600);
     
     // Generate art on canvas
     // Use FID as seed if available (matches contract), otherwise use tokenId
@@ -99,8 +99,8 @@ export async function GET(
     try {
       generateArt(canvas as unknown as HTMLCanvasElement, { tokenId: seed });
       
-      // Convert canvas to PNG buffer (200x200 for minimum file size)
-      // PNG format with 200x200 resolution = smallest possible file size
+      // Convert canvas to PNG buffer (600x600)
+      // PNG format with 600x600 resolution
       const buffer = canvas.toBuffer("image/png");
       
       // Convert Buffer to Uint8Array for NextResponse compatibility

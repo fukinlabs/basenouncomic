@@ -646,9 +646,9 @@ export default function MintPage() {
     const frameId = requestAnimationFrame(() => {
       if (canvasRef.current) {
         try {
-          // Set canvas size before generating art (reduced to 200x200 for minimum gas costs)
-          canvasRef.current.width = 200;
-          canvasRef.current.height = 200;
+          // Set canvas size before generating art (600x600 high-resolution)
+          canvasRef.current.width = 600;
+          canvasRef.current.height = 600;
           
           // Generate art using FID as seed
           generateArt(canvasRef.current, { tokenId: fid });
@@ -658,9 +658,8 @@ export default function MintPage() {
           // This reduces file size significantly while maintaining good visual quality
           setTimeout(() => {
             if (canvasRef.current) {
-              // Use PNG format for minimum file size (no quality parameter needed)
-              // PNG with 200x200 resolution = smallest possible base64 size
-              // If IPFS upload fails, this compressed PNG base64 will be used as fallback
+              // Use PNG format; 600x600 for higher quality
+              // If IPFS upload fails, this PNG base64 will be used as fallback
               const base64 = canvasRef.current.toDataURL("image/png");
               setImageBase64(base64);
             }
