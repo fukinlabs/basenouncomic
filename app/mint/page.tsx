@@ -11,7 +11,7 @@ import { generateArt } from "../../lib/p5-art-generator";
 import contractABI from "../../lib/contract-abi.json";
 
 // NFT Contract Address on Base
-const NFT_CONTRACT_ADDRESS = "0x03Fa16B149D2a4E1BDBF65d0bDf4284C65557000" as const;
+const NFT_CONTRACT_ADDRESS = "0xe716f7053E5C7188E48d0408bD601918f4Dc2d66" as const;
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();
@@ -717,15 +717,7 @@ export default function MintPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">
       <div className="w-full max-w-md">
-        {/* Gallery Link */}
-        <div className="mb-4 text-center">
-          <Link
-            href="/gallery"
-            className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
-          >
-            🔍 Browse Gallery
-          </Link>
-        </div>
+        
         {!fid && !isSignedIn && (
           <div className="box-content object-center w-full h-full ">
             <Image 
@@ -738,18 +730,18 @@ export default function MintPage() {
           </div>
         )}
         {!isConnected ? (
-          <div className="text-center p-8 bg-white rounded-lg shadow-lg">
+          <div className="text-center p-8 rounded-lg shadow-lg">
             {connectors.length > 0 && (
               <button
                 onClick={() => connect({ connector: connectors[0] })}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="h-12 w-48 p-6 py-3 nf_m bg-purple-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Connect Wallet
               </button>
             )}
           </div>
         ) : !fid ? (
-          <div className="bg-white p-8 rounded-lg shadow-lg">
+          <div className="  p-8 rounded-lg shadow-lg">
             <div className="text-center">
             {/* <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
               <p className="text-gray-600 mb-6">
@@ -763,7 +755,7 @@ export default function MintPage() {
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+                    className="px-8 py-3 bg-blue-600 nf_m text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
                  
                    style={{
                       backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',

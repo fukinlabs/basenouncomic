@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { sdk } from "@farcaster/miniapp-sdk";
 
@@ -128,7 +127,7 @@ export default function Home() {
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: 'url(/monkey.gif)',
-          backgroundSize: '110%',
+          backgroundSize: '40%',
           backgroundPosition: 'center',
         }}
       />
@@ -136,29 +135,6 @@ export default function Home() {
       {/* Overlay for better button visibility (optional) */}
       <div className="absolute inset-0 bg-[#2f3057]/30" />
       
-      {/* Content - Buttons at bottom */}
-      <div className="relative flex-1 flex items-end justify-center pb-8 px-4 z-20">
-        {!isImageLoaded ? (
-          <div className="w-full max-w-xs px-8 py-4 bg-gray-600 text-white rounded-lg font-sans text-lg font-semibold text-center">
-            Loading...
-          </div>
-        ) : (
-          <div className="w-full max-w-xs space-y-3">
-            <Link
-              href="/mint"
-              className="w-full px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center block"
-            >
-              🎨 Mint NFT
-            </Link>
-            <Link
-              href="/gallery"
-              className="w-full px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl text-center block"
-            >
-              🔍 Browse Gallery
-            </Link>
-          </div>
-        )}
-      </div>
     </main>
   );
 }
