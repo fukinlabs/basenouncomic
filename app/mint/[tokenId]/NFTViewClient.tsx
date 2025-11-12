@@ -69,6 +69,22 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           if (metadataResponse.status === 404) {
             const errorData = await metadataResponse.json().catch(() => ({}));
             if (isMounted) {
+              // If contract uses tokenId = FID, we can still generate art
+              // Set tokenId as FID and allow art generation
+              setFid(tokenId);
+              
+              // Try to fetch Farcaster user data using tokenId as FID
+              fetch(`/api/farcaster-user?fid=${encodeURIComponent(tokenId)}`)
+                .then((userRes) => userRes.ok ? userRes.json() : null)
+                .then((userData) => {
+                  if (isMounted && userData?.user) {
+                    setFarcasterUser(userData.user);
+                  }
+                })
+                .catch((err) => {
+                  console.warn("Error fetching Farcaster user:", err);
+                });
+              
               setError(errorData.error || "NFT not found - This token has not been minted yet");
               setIsLoading(false);
             }
@@ -76,6 +92,8 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             // Other errors
             console.warn("Metadata not found, using ArtGenerator fallback");
             if (isMounted) {
+              // Still allow art generation with tokenId as FID
+              setFid(tokenId);
               setError("Failed to load metadata");
               setIsLoading(false);
             }
@@ -195,11 +213,21 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                 <p className="text-gray-500">Loading NFT...</p>
               </div>
             ) : error && error.includes("not been minted") ? (
-              <div className="w-full h-96 bg-red-50 rounded-lg flex items-center justify-center border-2 border-red-200">
-                <div className="text-center p-8">
-                  <p className="text-2xl mb-4">❌</p>
-                  <p className="text-lg font-semibold text-red-800 mb-2">NFT Not Found</p>
-                  <p className="text-sm text-red-600">{error}</p>
+              // Show error but still allow art generation if tokenId = FID
+              <div className="w-full max-w-md relative">
+                <div className="mb-4 p-4 bg-red-50 rounded-lg border-2 border-red-200">
+                  <div className="text-center">
+                    <p className="text-2xl mb-2">❌</p>
+                    <p className="text-lg font-semibold text-red-800 mb-1">NFT Not Found</p>
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                </div>
+                {/* Still show art generation using tokenId as FID (for contracts where tokenId = FID) */}
+                <div className="w-full max-w-md relative mt-4">
+                  <ArtGenerator tokenId={fid || tokenId} fid={fid || tokenId} width={600} height={600} />
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                    ⚠️ NFT metadata not found, but showing art based on FID (assuming tokenId = FID)
+                  </div>
                 </div>
               </div>
             ) : (
