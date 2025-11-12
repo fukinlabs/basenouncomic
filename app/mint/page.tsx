@@ -364,64 +364,64 @@ export default function MintPage() {
     }
   }, [writeError]);
 
-  // Handle successful mint - extract tokenId from transaction receipt
+  // Handle successful mint - use FID as tokenId (smart contract uses fid = tokenId)
   useEffect(() => {
     let isMounted = true;
     
-    const extractTokenId = async () => {
+    const setTokenIdFromFid = async () => {
       if (isConfirmed && hash) {
         try {
-          // Get transaction receipt to extract tokenId from MintForFID event
-          const { createPublicClient, http, parseEventLogs } = await import("viem");
-          const { base } = await import("viem/chains");
+          // Smart contract uses fid = tokenId, so use fid directly
+          if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+            if (isMounted) {
+              setMintedTokenId(fid.trim());
+              console.log("Minted tokenId (using FID):", fid.trim());
+            }
+          } else {
+            console.error("Cannot set tokenId: invalid FID");
+          }
           
-          const publicClient = createPublicClient({
-            transport: http(),
-            chain: base,
-          });
-          
-          const receipt = await publicClient.getTransactionReceipt({ hash });
-          
-          if (!isMounted) return; // Check if component is still mounted
-          
-          // Parse MintForFID event to get tokenId
-          const mintEvents = parseEventLogs({
-            abi: contractABI,
-            eventName: "MintForFID",
-            logs: receipt.logs,
-          });
-          
-          if (mintEvents.length > 0) {
-            const event = mintEvents[0];
-            // Access args from the parsed event
-            // Type assertion needed because parseEventLogs returns Log type
-            const eventArgs = (event as { args?: { tokenId?: bigint } }).args;
-            const tokenId = eventArgs?.tokenId?.toString();
-            if (tokenId && isMounted) {
-              setMintedTokenId(tokenId);
-              console.log("Minted tokenId:", tokenId);
-            } else if (isMounted) {
-              // Fallback: use FID as tokenId if event parsing fails, but validate FID first
-              if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
-                console.warn("Could not extract tokenId from event, using FID as fallback");
-                setMintedTokenId(fid.trim());
-              } else {
-                console.error("Cannot use FID as fallback: invalid FID");
-                // Don't set tokenId if FID is invalid
+          // Optionally verify by parsing event (but use fid as primary source)
+          try {
+            const { createPublicClient, http, parseEventLogs } = await import("viem");
+            const { base } = await import("viem/chains");
+            
+            const publicClient = createPublicClient({
+              transport: http(),
+              chain: base,
+            });
+            
+            const receipt = await publicClient.getTransactionReceipt({ hash });
+            
+            if (!isMounted) return;
+            
+            // Parse Mint event to verify (but fid is the source of truth)
+            const mintEvents = parseEventLogs({
+              abi: contractABI,
+              eventName: "Mint",
+              logs: receipt.logs,
+            });
+            
+            if (mintEvents.length > 0) {
+              const event = mintEvents[0];
+              const eventArgs = (event as { args?: { tokenId?: bigint; fid?: bigint } }).args;
+              const eventTokenId = eventArgs?.tokenId?.toString();
+              const eventFid = eventArgs?.fid?.toString();
+              
+              console.log("Mint event - tokenId:", eventTokenId, "fid:", eventFid);
+              
+              // Verify that event tokenId matches fid (for contracts where tokenId = fid)
+              if (eventFid && eventFid === fid) {
+                console.log("✅ Verified: Event FID matches current FID");
               }
             }
-          } else if (isMounted) {
-            // Fallback: use FID as tokenId if no event found, but validate FID first
-            if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
-              console.warn("No MintForFID event found, using FID as fallback");
-              setMintedTokenId(fid.trim());
-            } else {
-              console.error("Cannot use FID as fallback: invalid FID");
-            }
+          } catch (eventError) {
+            // Event parsing is optional, don't fail if it errors
+            console.warn("Could not parse Mint event (non-critical):", eventError);
           }
         } catch (error) {
-          console.error("Error extracting tokenId:", error);
-          // Fallback: use FID as tokenId, but validate FID first
+          console.error("Error setting tokenId:", error);
+          // Still try to use fid as tokenId if available
           if (isMounted && fid && fid.trim() !== "" && !isNaN(Number(fid))) {
             setMintedTokenId(fid.trim());
           }
@@ -433,14 +433,13 @@ export default function MintPage() {
       }
     };
     
-    extractTokenId();
+    setTokenIdFromFid();
     
     // Cleanup function to prevent state updates after unmount
     return () => {
       isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConfirmed, hash]); // fid is intentionally excluded to prevent unnecessary re-runs
+  }, [isConfirmed, hash, fid]); // Include fid since we use it as tokenId
 
 
   const handleMint = async () => {
