@@ -44,14 +44,30 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenId)}`);
+        
+        // If smart contract uses tokenID = FID, try to fetch by FID first
+        // Then try to fetch metadata using tokenId as tokenId
+        let metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenId)}`);
+        
+        // If not found, try using tokenId as FID (for contracts where tokenId = FID)
+        if (!metadataResponse.ok && metadataResponse.status === 404) {
+          // Try fetching by FID
+          const fidResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(tokenId)}`);
+          if (fidResponse.ok) {
+            const fidData = await fidResponse.json();
+            if (fidData.tokenId) {
+              // Fetch metadata using the actual tokenId from FID lookup
+              metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(fidData.tokenId)}`);
+            }
+          }
+        }
         
         if (!isMounted) return;
         
-        if (!response.ok) {
+        if (!metadataResponse.ok) {
           // If metadata not found, check if it's a 404 (NFT doesn't exist)
-          if (response.status === 404) {
-            const errorData = await response.json().catch(() => ({}));
+          if (metadataResponse.status === 404) {
+            const errorData = await metadataResponse.json().catch(() => ({}));
             if (isMounted) {
               setError(errorData.error || "NFT not found - This token has not been minted yet");
               setIsLoading(false);
@@ -67,31 +83,40 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           return;
         }
 
-        const data = await response.json();
+        const data = await metadataResponse.json();
         if (isMounted) {
           setMetadata(data);
-          // Extract FID from metadata attributes to use as seed for art generation
+          
+          // If smart contract uses tokenID = FID, use tokenId as FID directly
+          // Otherwise, extract FID from metadata attributes
+          let extractedFid: string | undefined = undefined;
+          
+          // Try to extract FID from metadata attributes first
           const fidAttr = data.attributes?.find((attr: { trait_type: string; value: string | number }) => 
             attr.trait_type === "FID"
           );
           if (fidAttr && fidAttr.value) {
-            const extractedFid = String(fidAttr.value);
+            extractedFid = String(fidAttr.value);
+          } else {
+            // If FID not in metadata, assume tokenId = FID (for contracts where tokenId = FID)
+            extractedFid = tokenId;
+          }
+          
+          if (extractedFid) {
             setFid(extractedFid);
             
             // Fetch Farcaster user data
-            if (extractedFid) {
-              fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
-                .then((userRes) => userRes.ok ? userRes.json() : null)
-                .then((userData) => {
-                  if (isMounted && userData?.user) {
-                    setFarcasterUser(userData.user);
-                  }
-                })
-                .catch((err) => {
-                  console.warn("Error fetching Farcaster user:", err);
-                  // Don't show error, just skip user data
-                });
-            }
+            fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
+              .then((userRes) => userRes.ok ? userRes.json() : null)
+              .then((userData) => {
+                if (isMounted && userData?.user) {
+                  setFarcasterUser(userData.user);
+                }
+              })
+              .catch((err) => {
+                console.warn("Error fetching Farcaster user:", err);
+                // Don't show error, just skip user data
+              });
           }
         }
       } catch (err) {
@@ -185,7 +210,8 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                   </div>
                 ) : (
                   <>
-                    <ArtGenerator tokenId={tokenId} fid={fid} width={600} height={600} />
+                    {/* Use FID if available (for contracts where tokenId = FID), otherwise use tokenId */}
+                    <ArtGenerator tokenId={fid || tokenId} fid={fid || tokenId} width={600} height={600} />
                     {!fid && metadata && (
                       <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                         ⚠️ Warning: FID not found in metadata, using Token ID as seed. Art may not match minted version.
