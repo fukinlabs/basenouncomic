@@ -28,6 +28,11 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
   const [fid, setFid] = useState<string | undefined>(nft.fid);
+  const [farcasterUser, setFarcasterUser] = useState<{
+    username?: string;
+    displayName?: string;
+    avatarUrl?: string;
+  } | null>(null);
 
   // Fetch metadata if not already loaded
   useEffect(() => {
@@ -42,14 +47,51 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
               attr.trait_type === "FID"
             );
             if (fidAttr && fidAttr.value) {
-              setFid(String(fidAttr.value));
+              const extractedFid = String(fidAttr.value);
+              setFid(extractedFid);
+              
+              // Fetch Farcaster user data
+              fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
+                .then((userRes) => userRes.ok ? userRes.json() : null)
+                .then((userData) => {
+                  if (userData?.user) {
+                    setFarcasterUser(userData.user);
+                  }
+                })
+                .catch((err) => {
+                  console.warn("Error fetching Farcaster user:", err);
+                });
             } else if (nft.fid) {
               // If FID not in metadata but available in nft object, use it
               setFid(nft.fid);
+              
+              // Fetch Farcaster user data
+              fetch(`/api/farcaster-user?fid=${encodeURIComponent(nft.fid)}`)
+                .then((userRes) => userRes.ok ? userRes.json() : null)
+                .then((userData) => {
+                  if (userData?.user) {
+                    setFarcasterUser(userData.user);
+                  }
+                })
+                .catch((err) => {
+                  console.warn("Error fetching Farcaster user:", err);
+                });
             }
           } else if (nft.fid) {
             // If metadata fetch fails but FID is available, use it
             setFid(nft.fid);
+            
+            // Fetch Farcaster user data
+            fetch(`/api/farcaster-user?fid=${encodeURIComponent(nft.fid)}`)
+              .then((userRes) => userRes.ok ? userRes.json() : null)
+              .then((userData) => {
+                if (userData?.user) {
+                  setFarcasterUser(userData.user);
+                }
+              })
+              .catch((err) => {
+                console.warn("Error fetching Farcaster user:", err);
+              });
           }
         })
         .catch((err) => {
@@ -57,6 +99,18 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           // If fetch fails but FID is available, use it
           if (nft.fid) {
             setFid(nft.fid);
+            
+            // Fetch Farcaster user data
+            fetch(`/api/farcaster-user?fid=${encodeURIComponent(nft.fid)}`)
+              .then((userRes) => userRes.ok ? userRes.json() : null)
+              .then((userData) => {
+                if (userData?.user) {
+                  setFarcasterUser(userData.user);
+                }
+              })
+              .catch((err) => {
+                console.warn("Error fetching Farcaster user:", err);
+              });
           }
         });
     } else if (metadata) {
@@ -65,15 +119,58 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
         attr.trait_type === "FID"
       );
       if (fidAttr && fidAttr.value) {
-        setFid(String(fidAttr.value));
+        const extractedFid = String(fidAttr.value);
+        setFid(extractedFid);
+        
+        // Fetch Farcaster user data if not already loaded
+        if (!farcasterUser) {
+          fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
+            .then((userRes) => userRes.ok ? userRes.json() : null)
+            .then((userData) => {
+              if (userData?.user) {
+                setFarcasterUser(userData.user);
+              }
+            })
+            .catch((err) => {
+              console.warn("Error fetching Farcaster user:", err);
+            });
+        }
       } else if (nft.fid && !fid) {
         setFid(nft.fid);
+        
+        // Fetch Farcaster user data if not already loaded
+        if (!farcasterUser) {
+          fetch(`/api/farcaster-user?fid=${encodeURIComponent(nft.fid)}`)
+            .then((userRes) => userRes.ok ? userRes.json() : null)
+            .then((userData) => {
+              if (userData?.user) {
+                setFarcasterUser(userData.user);
+              }
+            })
+            .catch((err) => {
+              console.warn("Error fetching Farcaster user:", err);
+            });
+        }
       }
     } else if (nft.fid && !fid) {
       // If no metadata but FID is available, use it
       setFid(nft.fid);
+      
+      // Fetch Farcaster user data if not already loaded
+      if (!farcasterUser) {
+        fetch(`/api/farcaster-user?fid=${encodeURIComponent(nft.fid)}`)
+          .then((userRes) => userRes.ok ? userRes.json() : null)
+          .then((userData) => {
+            if (userData?.user) {
+              setFarcasterUser(userData.user);
+            }
+          })
+          .catch((err) => {
+            console.warn("Error fetching Farcaster user:", err);
+          });
+      }
     }
-  }, [nft.tokenId, nft.fid, metadata, fid]);
+  }, [nft.tokenId, nft.fid, metadata, fid, farcasterUser]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -109,6 +206,33 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
               </div>
             )}
           </div>
+          
+          {/* Farcaster User Info */}
+          {farcasterUser && (
+            <div className="mb-3 p-3 bg-purple-900/20 rounded-lg border border-purple-700/30">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {farcasterUser.avatarUrl && (
+                  <Image 
+                    src={farcasterUser.avatarUrl} 
+                    alt={farcasterUser.displayName || farcasterUser.username || "User"}
+                    width={40}
+                    height={40}
+                    className="w-10 h-10 rounded-full"
+                    unoptimized
+                  />
+                )}
+                <div>
+                  <h4 className="text-sm sm:text-base font-semibold text-purple-300">
+                    {farcasterUser.displayName || farcasterUser.username || `FID: ${fid}`}
+                  </h4>
+                  {farcasterUser.username && (
+                    <p className="text-xs sm:text-sm text-purple-400">@{farcasterUser.username}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
           <h3 className="text-base sm:text-lg font-semibold text-gray-300 mb-2">
             {metadata?.name || nft.name || `NFT #${nft.tokenId}`}
           </h3>
