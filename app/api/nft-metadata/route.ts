@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Smart contract uses tokenId = FID, so use tokenId directly as FID
     // First, check if NFT exists by trying to get owner
     // If NFT doesn't exist, ownerOf will throw an error
     let owner: string;
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Read tokenURI from contract
+    // Read tokenURI from contract using tokenId (which equals FID)
     let tokenURI: string;
     try {
       tokenURI = await publicClient.readContract({
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
           parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
         ],
         functionName: "tokenURI",
-        args: [BigInt(tokenIdNum)],
+        args: [BigInt(tokenIdNum)], // tokenId = FID in this contract
       });
     } catch {
       return NextResponse.json(

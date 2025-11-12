@@ -904,10 +904,10 @@ export default function MintPage() {
                     ⚠️ This FID has already been minted. Each FID can only mint once.
                   </p>
                 </div>
-                {/* View NFT Button - Use userNFT.tokenId if available (from contract), otherwise use fid (smart contract uses fid = tokenId) */}
-                {(userNFT?.tokenId || fid) && (
+                {/* View NFT Button - Smart contract uses tokenId = FID, so use fid directly */}
+                {fid && (
                   <a
-                    href={`/mint/${userNFT?.tokenId || fid}`}
+                    href={`/mint/${fid}`}
                     className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
                   >
                     🎨 View My NFT →
