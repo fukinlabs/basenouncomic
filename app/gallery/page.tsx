@@ -693,9 +693,11 @@ export default function GalleryPage() {
             </div>
           ) : (
             <>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 items-center">
                 {nfts.map((nft) => (
-                  <NFTGalleryItem key={nft.tokenId} nft={nft} />
+                  <div key={nft.tokenId} className="w-full max-w-2xl">
+                    <NFTGalleryItem nft={nft} />
+                  </div>
                 ))}
               </div>
 
