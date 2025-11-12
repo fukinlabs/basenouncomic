@@ -910,7 +910,7 @@ export default function MintPage() {
                     href={`/mint/${userNFT.tokenId}`}
                     className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
                   >
-                    🎨 View My NFT →
+                    🎨 View My NFT → tt
                   </a>
                 ) : fid ? (
                   // Fallback: try using fid to find tokenId (will redirect to correct tokenId via NFTViewClient)
