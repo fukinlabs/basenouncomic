@@ -43,11 +43,55 @@ export async function GET(
       );
     }
 
-    // Smart contract uses tokenId = FID, so use tokenId directly as FID
-    // This ensures the generated art matches what's stored in the contract
-    const fid = tokenIdNum; // tokenId = FID in this contract
+    // Smart contract uses tokenId = nextId++ (not fid = tokenId)
+    // Need to extract FID from tokenURI metadata to use as seed for art generation
+    let fid: string | undefined = undefined;
+    try {
+      const tokenURI = await publicClient.readContract({
+        address: NFT_CONTRACT_ADDRESS,
+        abi: [
+          parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
+        ],
+        functionName: "tokenURI",
+        args: [BigInt(tokenIdNum)],
+      });
+
+      if (tokenURI) {
+        // Convert IPFS URL to HTTP URL if needed
+        let metadataUrl = tokenURI;
+        if (tokenURI.startsWith("ipfs://")) {
+          const ipfsHash = tokenURI.replace("ipfs://", "");
+          metadataUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+        } else if (tokenURI.startsWith("data:application/json;base64,")) {
+          // Handle base64 encoded metadata
+          const base64Data = tokenURI.replace("data:application/json;base64,", "");
+          const jsonStr = Buffer.from(base64Data, "base64").toString("utf-8");
+          const metadata = JSON.parse(jsonStr);
+          const fidAttr = metadata.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+            attr.trait_type === "FID"
+          );
+          if (fidAttr && fidAttr.value) {
+            fid = String(fidAttr.value);
+          }
+        } else {
+          // Try to fetch metadata from HTTP URL
+          const metadataResponse = await fetch(metadataUrl);
+          if (metadataResponse.ok) {
+            const metadata = await metadataResponse.json();
+            const fidAttr = metadata.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+              attr.trait_type === "FID"
+            );
+            if (fidAttr && fidAttr.value) {
+              fid = String(fidAttr.value);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("Could not fetch FID from metadata, using tokenId as seed:", error);
+    }
     
-    // Generate canvas art using FID (which equals tokenId) as seed
+    // Generate canvas art using FID as seed (matches contract generation), or tokenId as fallback
     // Create canvas using node-canvas (600x600 for higher quality)
     const canvas = createCanvas(600, 600);
     

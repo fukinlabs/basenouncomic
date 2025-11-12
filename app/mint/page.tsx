@@ -904,15 +904,23 @@ export default function MintPage() {
                     ⚠️ This FID has already been minted. Each FID can only mint once.
                   </p>
                 </div>
-                {/* View NFT Button - Smart contract uses tokenId = FID, so use fid directly */}
-                {fid && (
+                {/* View NFT Button - Smart contract uses tokenId = nextId++, so use userNFT.tokenId from /api/nft-by-fid */}
+                {userNFT?.tokenId ? (
+                  <a
+                    href={`/mint/${userNFT.tokenId}`}
+                    className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
+                  >
+                    🎨 View My NFT →
+                  </a>
+                ) : fid ? (
+                  // Fallback: try using fid to find tokenId (will redirect to correct tokenId via NFTViewClient)
                   <a
                     href={`/mint/${fid}`}
                     className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
                   >
                     🎨 View My NFT →
                   </a>
-                )}
+                ) : null}
               </div>
             )}
 

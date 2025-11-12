@@ -45,18 +45,19 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
       try {
         setIsLoading(true);
         
-        // If smart contract uses tokenID = FID, try to fetch by FID first
-        // Then try to fetch metadata using tokenId as tokenId
+        // Smart contract uses tokenId = nextId++ (not fid = tokenId)
+        // First, try to fetch metadata using tokenId directly
         let metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenId)}`);
         
-        // If not found, try using tokenId as FID (for contracts where tokenId = FID)
+        // If not found, try using tokenId as FID to find the actual tokenId
+        // (in case user entered FID instead of tokenId in URL)
         if (!metadataResponse.ok && metadataResponse.status === 404) {
-          // Try fetching by FID
+          // Try fetching by FID to get the actual tokenId
           const fidResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(tokenId)}`);
           if (fidResponse.ok) {
             const fidData = await fidResponse.json();
-            if (fidData.tokenId) {
-              // Fetch metadata using the actual tokenId from FID lookup
+            if (fidData.tokenId && fidData.tokenId !== tokenId) {
+              // Found different tokenId, fetch metadata using the actual tokenId
               metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(fidData.tokenId)}`);
             }
           }
