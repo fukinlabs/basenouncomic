@@ -8,9 +8,7 @@ import { sdk } from "@farcaster/miniapp-sdk";
 import { minikitConfig } from "../../minikit.config";
 import { generateArt } from "../../lib/p5-art-generator";
 import contractABI from "../../lib/contract-abi.json";
-
-// NFT Contract Address on Base
-const NFT_CONTRACT_ADDRESS = "0xe716f7053E5C7188E48d0408bD601918f4Dc2d66" as const;
+import { NFT_CONTRACT_ADDRESS } from "../../lib/contract-config";
 
 export default function MintPage() {
   const { address, isConnected } = useAccount();

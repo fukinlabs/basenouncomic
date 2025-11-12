@@ -3,8 +3,7 @@ import { createCanvas } from "canvas";
 import { generateArt } from "../../../../lib/p5-art-generator";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
-
-const NFT_CONTRACT_ADDRESS = "0xe716f7053E5C7188E48d0408bD601918f4Dc2d66" as const;
+import { NFT_CONTRACT_ADDRESS } from "../../../../lib/contract-config";
 
 // Create public client for Base
 const publicClient = createPublicClient({
