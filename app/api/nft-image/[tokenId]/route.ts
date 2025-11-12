@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCanvas } from "canvas";
 import { generateArt } from "../../../../lib/p5-art-generator";
+// Keep imports for potential future use (e.g., verifying tokenURI from contract)
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 import { NFT_CONTRACT_ADDRESS } from "../../../../lib/contract-config";
 
-// Create public client for Base
+// Create public client for Base (kept for potential future use)
 const publicClient = createPublicClient({
   chain: base,
   transport: http(),
 });
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * API Route to serve NFT images
