@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 
 export default function Header() {
+  const router = useRouter();
   const [fid, setFid] = useState<string>("");
   const [farcasterUser, setFarcasterUser] = useState<{
     username?: string;
@@ -191,8 +193,8 @@ export default function Header() {
     
     console.log("[Header] Sign out complete");
     
-    // Reload page to clear all state
-    window.location.reload();
+    // Redirect to mint page (sign in page)
+    router.push("/mint");
   };
 
   // Debug: Log current state
