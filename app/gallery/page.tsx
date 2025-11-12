@@ -584,7 +584,7 @@ export default function GalleryPage() {
 
   return (
     <main className="min-h-screen bg-black p-2 sm:p-4">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto w-full">
         {/* Header */}
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
@@ -817,9 +817,9 @@ export default function GalleryPage() {
             </div>
           ) : (
             <>
-              <div className="flex flex-col gap-4 items-center">
+              <div className="flex flex-col gap-4 items-center w-full">
                 {nfts.map((nft) => (
-                  <div key={nft.tokenId} className="w-full max-w-2xl">
+                  <div key={nft.tokenId} className="w-full max-w-2xl mx-auto">
                     <NFTGalleryItem nft={nft} />
                   </div>
                 ))}
