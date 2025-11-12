@@ -1,7 +1,9 @@
 import { Metadata } from "next";
 import { minikitConfig } from "../../../minikit.config";
 
-const ROOT_URL = process.env.NEXT_PUBLIC_ROOT_URL || "http://localhost:3000";
+// Get ROOT_URL from env or use Vercel URL as fallback
+const ROOT_URL = process.env.NEXT_PUBLIC_ROOT_URL || 
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 // Generate metadata with embed tags for sharing
 export async function generateMetadata({
@@ -10,7 +12,8 @@ export async function generateMetadata({
   params: Promise<{ tokenId: string }>;
 }): Promise<Metadata> {
   const { tokenId } = await params;
-  const imageUrl = `${ROOT_URL}/api/og?tokenId=${tokenId}`;
+  // Use actual NFT image instead of placeholder
+  const imageUrl = `${ROOT_URL}/api/nft-image/${tokenId}`;
   const pageUrl = `${ROOT_URL}/mint/${tokenId}`;
 
   // Create MiniApp embed JSON according to Farcaster docs
@@ -47,6 +50,22 @@ export async function generateMetadata({
     openGraph: {
       title: `NFT #${tokenId}`,
       description: `Minted on ${minikitConfig.miniapp.name}`,
+      url: pageUrl,
+      siteName: minikitConfig.miniapp.name,
+      images: [
+        {
+          url: imageUrl,
+          width: 600,
+          height: 600,
+          alt: `NFT #${tokenId}`,
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `NFT #${tokenId} - ${minikitConfig.miniapp.name}`,
+      description: `Check out this NFT minted on ${minikitConfig.miniapp.name}`,
       images: [imageUrl],
     },
     other: {

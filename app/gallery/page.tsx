@@ -92,58 +92,72 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
   }, [nft.tokenId, fid]);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-2xl text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">
+    <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700">
+      <div className="p-4 sm:p-6">
+        {/* Header with Token ID and FID */}
+        <div className="mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-white">
+              Token ID: <span className="text-blue-400">#{nft.tokenId}</span>
+            </h2>
+            {fid && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">FID:</span>
+                <span className="text-sm font-semibold text-purple-400 bg-purple-900/30 px-2 py-1 rounded">
+                  {fid}
+                </span>
+              </div>
+            )}
+          </div>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-300 mb-2">
             {metadata?.name || nft.name || `NFT #${nft.tokenId}`}
-          </h1>
-          <p className="text-gray-600 mb-8">
-            {metadata?.description || `This NFT was minted on FarcasterP5NFT`}
-          </p>
+          </h3>
+          {metadata?.description && (
+            <p className="text-sm text-gray-400 mb-4">
+              {metadata.description}
+            </p>
+          )}
+        </div>
 
-          <div className="bg-white p-4 sm:p-8 rounded-lg shadow-lg mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="w-full max-w-md relative">
-                <canvas
-                  ref={canvasRef}
-                  className="w-full h-full object-contain rounded-lg"
-                  style={{ 
-                    imageRendering: 'crisp-edges',
-                    maxWidth: '100%',
-                    height: 'auto'
-                  }}
-                />
+        {/* Canvas */}
+        <div className="flex justify-center mb-4">
+          <div className="w-full max-w-md relative bg-black rounded-lg p-2">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full object-contain rounded-lg"
+              style={{ 
+                imageRendering: 'crisp-edges',
+                maxWidth: '100%',
+                height: 'auto'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Attributes and Info */}
+        <div className="text-left">
+          {metadata?.attributes && metadata.attributes.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-sm sm:text-base font-semibold mb-2 text-gray-300">Attributes:</h3>
+              <div className="flex flex-wrap gap-2">
+                {metadata.attributes.map((attr, idx) => (
+                  <div 
+                    key={idx}
+                    className="bg-gray-700 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm text-gray-200"
+                  >
+                    <span className="font-semibold">{attr.trait_type}:</span>{" "}
+                    <span>{attr.value}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="text-left">
-              <h2 className="text-xl font-semibold mb-2">Token ID: {nft.tokenId}</h2>
-              {nft.fid && (
-                <p className="text-gray-600 mb-2">FID: {nft.fid}</p>
-              )}
-              {metadata?.attributes && metadata.attributes.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold mb-2">Attributes:</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {metadata.attributes.map((attr, idx) => (
-                      <div 
-                        key={idx}
-                        className="bg-gray-100 px-3 py-1 rounded-full text-sm"
-                      >
-                        <span className="font-semibold">{attr.trait_type}:</span>{" "}
-                        <span>{attr.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
 
-          <div className="space-y-4">
+          {/* View Details Button */}
+          <div className="mt-4">
             <Link
               href={`/mint/${nft.tokenId}`}
-              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              className="inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center text-sm sm:text-base"
             >
               View Full Details →
             </Link>
@@ -451,9 +465,22 @@ export default function GalleryPage() {
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">🎨 NFT Gallery</h1>
-            <p className="text-sm sm:text-base text-gray-400">
-              {total > 0 ? `Total: ${total} NFTs` : "Loading..."}
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <p className="text-sm sm:text-base text-gray-400">
+                {total > 0 ? (
+                  <>
+                    <span className="font-semibold text-white">Total: {total}</span> NFTs
+                  </>
+                ) : (
+                  "Loading..."
+                )}
+              </p>
+              {nfts.length > 0 && (
+                <p className="text-xs sm:text-sm text-gray-500">
+                  Showing {nfts.length} of {total}
+                </p>
+              )}
+            </div>
           </div>
           <Link
             href="/mint"
@@ -469,7 +496,7 @@ export default function GalleryPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              placeholder="Search by Token ID or FID..."
+              placeholder="Search by Token ID (#123) or FID (123)..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -611,25 +638,25 @@ export default function GalleryPage() {
 
               <div className="space-y-3 sm:space-y-4">
                 {/* Share Buttons */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                <div className="nf_m flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                   <button
                     onClick={handleShareFarcaster}
                     disabled={isSharing}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold text-sm sm:text-base"
+                    className="h-12 w-48 px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-full  hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold text-sm sm:text-base"
                   >
                     {isSharing ? "Sharing..." : "📱 Share on Farcaster"}
                   </button>
                   
                   <button
                     onClick={handleShareTwitter}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors font-semibold text-sm sm:text-base"
+                    className="h-12 w-48 px-4 sm:px-6 py-2 sm:py-3 bg-blue-400 text-white rounded-full hover:bg-blue-500 transition-colors font-semibold text-sm sm:text-base"
                   >
                     🐦 Share on Twitter/X
                   </button>
                   
                   <button
                     onClick={handleCopyLink}
-                    className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors font-semibold text-sm sm:text-base ${
+                    className={`h-12 w-48 px-4 sm:px-6 py-2 sm:py-3 rounded-full transition-colors font-semibold text-sm sm:text-base ${
                       copySuccess
                         ? "bg-green-600 text-white"
                         : "bg-gray-600 text-white hover:bg-gray-700"
@@ -641,7 +668,7 @@ export default function GalleryPage() {
 
                 <Link
                   href={`/mint/${searchResult.tokenId}`}
-                  className="inline-block px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                  className="nf_m h-12 w-48 inline-block px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
                 >
                   View Full Page →
                 </Link>
