@@ -80,11 +80,85 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Search for Mint event to find tokenId
+    // Method 1: Try to find tokenId by iterating through all NFTs (more reliable for old mints)
+    // Use nextId() to get total supply, then loop from 0 to nextId-1
+    // Check each tokenId's tokenURI to find the one with matching FID
+    try {
+      const nextId = await publicClient.readContract({
+        address: NFT_CONTRACT_ADDRESS,
+        abi: [
+          parseAbiItem("function nextId() view returns (uint256)"),
+        ],
+        functionName: "nextId",
+      });
+      
+      const totalSupply = Number(nextId);
+      console.log(`Total supply (nextId): ${totalSupply}, searching for FID ${fidNum}`);
+      
+      // Loop through all tokenIds to find the one with matching FID
+      // Start from 0 (first NFT) to nextId-1
+      for (let i = 0; i < totalSupply; i++) {
+        try {
+          // Check if NFT exists by calling ownerOf
+          const owner = await publicClient.readContract({
+            address: NFT_CONTRACT_ADDRESS,
+            abi: [
+              parseAbiItem("function ownerOf(uint256 tokenId) view returns (address)"),
+            ],
+            functionName: "ownerOf",
+            args: [BigInt(i)],
+          });
+          
+          // If owner is zero address, NFT doesn't exist (skip)
+          if (!owner || owner === "0x0000000000000000000000000000000000000000") {
+            continue;
+          }
+          
+          // Get tokenURI to extract FID from metadata
+          const tokenURI = await publicClient.readContract({
+            address: NFT_CONTRACT_ADDRESS,
+            abi: [
+              parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
+            ],
+            functionName: "tokenURI",
+            args: [BigInt(i)],
+          });
+          
+          // Parse metadata to extract FID
+          if (tokenURI.startsWith("data:application/json;base64,")) {
+            const base64Data = tokenURI.replace("data:application/json;base64,", "");
+            const jsonStr = Buffer.from(base64Data, "base64").toString("utf-8");
+            const metadata = JSON.parse(jsonStr);
+            const fidAttr = metadata.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+              attr.trait_type === "FID"
+            );
+            
+            if (fidAttr && fidAttr.value && String(fidAttr.value) === fidNum) {
+              // Found matching FID! Return tokenId
+              console.log(`✅ Found tokenId ${i} for FID ${fidNum} using direct contract lookup`);
+              return NextResponse.json({
+                tokenId: String(i),
+                fid: fidNum,
+                method: "contract_lookup",
+              });
+            }
+          }
+        } catch {
+          // Skip this tokenId if it doesn't exist or has errors
+          continue;
+        }
+      }
+      
+      console.log(`No matching FID found in ${totalSupply} NFTs, falling back to event search`);
+    } catch (error) {
+      console.warn("Error in contract lookup method, falling back to event search:", error);
+    }
+
+    // Method 2: Fallback - Search for Mint event to find tokenId
     // Try multiple search ranges to find the event (NFT may have been minted long ago)
     // Start with larger range, then reduce if timeout
     let logs: Log[] = [];
-    const searchRanges = [20000, 10000, 5000, 2000, 1000]; // Try from largest to smallest
+    const searchRanges = [50000, 30000, 20000, 10000, 5000, 2000, 1000]; // Increased ranges
     
     for (const range of searchRanges) {
       try {

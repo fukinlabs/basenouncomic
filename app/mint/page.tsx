@@ -652,7 +652,8 @@ export default function MintPage() {
                 const nftResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid.trim())}`);
                 if (nftResponse.ok) {
                   const nftData = await nftResponse.json();
-                  if (nftData.tokenId && nftData.tokenId !== "0") {
+                  // ✅ Accept tokenId = "0" (first NFT minted)
+                  if (nftData.tokenId && nftData.tokenId !== "undefined" && nftData.tokenId !== "null" && /^\d+$/.test(String(nftData.tokenId))) {
                     if (isMounted) {
                       setMintedTokenId(nftData.tokenId);
                       console.log("✅ Minted tokenId (from API fallback):", nftData.tokenId);
@@ -1315,9 +1316,10 @@ export default function MintPage() {
                   </button>
                 ) : !isSignedOut && fid ? (
                   // Show Mint button if we have FID (from context or sign in)
-                  isAlreadyMinted === true && (userNFT?.tokenId || mintedTokenId) ? (
+                  // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted + tokenId), show View NFT button instead
+                  (mintedTokenId || (isAlreadyMinted === true && userNFT?.tokenId)) ? (
                     <a
-                      href={`/mint/${userNFT?.tokenId || mintedTokenId}`}
+                      href={`/mint/${mintedTokenId || userNFT?.tokenId || ""}`}
                       className="h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center"
                       style={{
                         backgroundColor: '#9333ea',
