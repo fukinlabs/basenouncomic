@@ -971,7 +971,8 @@ export default function MintPage() {
     };
   }, [artSeed]);
 
-  // Generate art on userNFTCanvasRef when userNFT.tokenId is available (fast loading - no image fetch needed)
+  // Generate art on userNFTCanvasRef when userNFT.tokenId is available
+  // Use tokenId as seed to match the minted NFT (same as Canvas above)
   useEffect(() => {
     if (!userNFT?.tokenId || !userNFTCanvasRef.current) return;
 
@@ -983,7 +984,7 @@ export default function MintPage() {
           userNFTCanvasRef.current.height = 600;
           
           // Generate art using tokenId as seed (matches the minted NFT)
-          // This is much faster than loading image from metadata
+          // This ensures art matches the Canvas above which also uses tokenId
           generateArt(userNFTCanvasRef.current, { tokenId: userNFT.tokenId });
         } catch (error) {
           console.error("Error generating NFT art on canvas:", error);
@@ -1109,8 +1110,7 @@ export default function MintPage() {
         ) : (
           <div className="flex flex-col items-center space-y-6">
             {/* Single Art Preview - Full Screen */}
-            {/* Only show canvas preview if user doesn't have NFT yet (no userNFT) */}
-            {fid && !userNFT && (
+            {fid && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                   <canvas
@@ -1137,7 +1137,7 @@ export default function MintPage() {
             {fid && !isLoadingNFT && userNFT && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <h3 className="text-lg font-semibold mb-3 text-center text-gray-800">
-                   {userNFT.name || `NFT #${userNFT.tokenId}`}
+                  🎨 Your NFT Collection
                 </h3>
                 <div className="flex flex-col items-center space-y-3">
                   {userNFT.tokenId ? (
@@ -1315,7 +1315,6 @@ export default function MintPage() {
                   </button>
                 ) : !isSignedOut && fid ? (
                   // Show Mint button if we have FID (from context or sign in)
-                  // If already minted, show View NFT button instead
                   isAlreadyMinted === true && (userNFT?.tokenId || mintedTokenId) ? (
                     <a
                       href={`/mint/${userNFT?.tokenId || mintedTokenId}`}
