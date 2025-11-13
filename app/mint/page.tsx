@@ -884,16 +884,18 @@ export default function MintPage() {
 
   // Update artSeed: prefer tokenId (from minted NFT) over FID (for preview)
   useEffect(() => {
-    // If we have mintedTokenId, use it as seed (art should match tokenId)
-    // Otherwise, use FID for preview (before mint)
-    if (mintedTokenId) {
+    // Priority: userNFT.tokenId > mintedTokenId > FID
+    // This ensures Canvas above matches Canvas below when NFT exists
+    if (userNFT?.tokenId) {
+      setArtSeed(userNFT.tokenId);
+    } else if (mintedTokenId) {
       setArtSeed(mintedTokenId);
     } else if (fid && !isNaN(Number(fid))) {
       setArtSeed(fid);
     } else {
       setArtSeed(null);
     }
-  }, [mintedTokenId, fid]);
+  }, [userNFT?.tokenId, mintedTokenId, fid]);
 
   // Generate art when artSeed changes and canvas is ready
   useEffect(() => {
@@ -973,9 +975,9 @@ export default function MintPage() {
   }, [artSeed]);
 
   // Generate art on userNFTCanvasRef when userNFT.tokenId is available
-  // Use tokenId as seed to match the minted NFT (same as Canvas above)
+  // Use artSeed (same as Canvas above) to ensure both Canvas show the same art
   useEffect(() => {
-    if (!userNFT?.tokenId || !userNFTCanvasRef.current) return;
+    if (!artSeed || !userNFTCanvasRef.current) return;
 
     const frameId = requestAnimationFrame(() => {
       if (userNFTCanvasRef.current) {
@@ -984,9 +986,9 @@ export default function MintPage() {
           userNFTCanvasRef.current.width = 600;
           userNFTCanvasRef.current.height = 600;
           
-          // Generate art using tokenId as seed (matches the minted NFT)
-          // This ensures art matches the Canvas above which also uses tokenId
-          generateArt(userNFTCanvasRef.current, { tokenId: userNFT.tokenId });
+          // Generate art using artSeed (same as Canvas above)
+          // This ensures both Canvas show identical art
+          generateArt(userNFTCanvasRef.current, { tokenId: artSeed });
         } catch (error) {
           console.error("Error generating NFT art on canvas:", error);
         }
@@ -994,7 +996,7 @@ export default function MintPage() {
     });
 
     return () => cancelAnimationFrame(frameId);
-  }, [userNFT?.tokenId]);
+  }, [artSeed]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">
@@ -1111,7 +1113,8 @@ export default function MintPage() {
         ) : (
           <div className="flex flex-col items-center space-y-6">
             {/* Single Art Preview - Full Screen */}
-            {fid && (
+            {/* Only show canvas preview if user doesn't have NFT yet (no userNFT) */}
+            {fid && !userNFT && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                   <canvas
@@ -1136,7 +1139,7 @@ export default function MintPage() {
 
             {/* User's NFT Display */}
             {fid && !isLoadingNFT && userNFT && (
-              <div className="w-full bg-white rounded-full p-4 shadow-lg">
+              <div className="w-full bg-white  p-4 shadow-lg">
                 <h3 className="text-lg font-semibold mb-3 text-center text-gray-800">
                   🎨 Your NFT Collection
                 </h3>
@@ -1162,12 +1165,7 @@ export default function MintPage() {
                         </p>
                         <p className="text-xs text-gray-500">Token ID: {userNFT.tokenId}</p>
                       </div>
-                      <a
-                        href={`/mint/${userNFT.tokenId}`}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-sm font-semibold"
-                      >
-                        View NFT →
-                      </a>
+                     
                     </>
                   )}
                 </div>
@@ -1198,14 +1196,7 @@ export default function MintPage() {
                   </p>
                 </div>
                 {/* View NFT Button - Use tokenId from smart contract (_safeMint, _setTokenURI, emit Mint) */}
-                {(userNFT?.tokenId || mintedTokenId) ? (
-                  <a
-                    href={`/mint/${userNFT?.tokenId || mintedTokenId}`}
-                    className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
-                  >
-                    🎨 View My NFT →
-                  </a>
-                ) : isLoadingNFT ? (
+                {isLoadingNFT ? (
                   // Loading: Fetching tokenId from contract (Mint event)
                   <div className="block w-full px-6 py-3 bg-gray-400 text-white rounded-full text-center font-semibold cursor-not-allowed">
                     Loading tokenId from contract...
