@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Search for MintForFID event to find tokenId
+    // Search for Mint event to find tokenId
     // Use smaller search range to avoid RPC timeout (503 errors)
     // Start with last 5000 blocks, then expand if needed
     let logs: Log[] = [];
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
       logs = await publicClient.getLogs({
         address: NFT_CONTRACT_ADDRESS,
-        event: parseAbiItem("event MintForFID(address indexed to, uint256 indexed tokenId, uint256 fid)"),
+        event: parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
         fromBlock,
         toBlock: "latest",
       });
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         
         logs = await publicClient.getLogs({
           address: NFT_CONTRACT_ADDRESS,
-          event: parseAbiItem("event MintForFID(address indexed to, uint256 indexed tokenId, uint256 fid)"),
+          event: parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
           fromBlock,
           toBlock: "latest",
         });
@@ -117,9 +117,9 @@ export async function GET(request: NextRequest) {
     const filteredLogs = logs.filter((log) => {
       const parsed = parseEventLogs({
         abi: [
-          parseAbiItem("event MintForFID(address indexed to, uint256 indexed tokenId, uint256 fid)"),
+          parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
         ],
-        eventName: "MintForFID",
+        eventName: "Mint",
         logs: [log],
       });
       if (parsed.length > 0) {
@@ -130,34 +130,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (filteredLogs.length === 0) {
-      // Fallback: use FID as tokenId (if contract uses FID as tokenId)
-      const tokenId = fidNum;
-      
-      // Try to get tokenURI to verify
-      try {
-        const tokenURI = await publicClient.readContract({
-          address: NFT_CONTRACT_ADDRESS,
-          abi: [
-            parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
-          ],
-          functionName: "tokenURI",
-          args: [BigInt(tokenId)],
-        });
-
-        if (tokenURI) {
-          return NextResponse.json({
-            fid: fidNum,
-            tokenId,
-            tokenURI,
-            minted: true,
-          });
-        }
-      } catch {
-        // Token doesn't exist
-      }
-
+      // No Mint event found for this FID
+      // Smart contract uses tokenId = nextId++ (not fid = tokenId)
+      // Cannot determine tokenId without event, return error
       return NextResponse.json(
-        { error: "NFT not found for this FID", minted: true },
+        { error: "NFT not found for this FID. Mint event not found.", minted: true },
         { status: 404 }
       );
     }
@@ -166,9 +143,9 @@ export async function GET(request: NextRequest) {
     const latestLog = filteredLogs[filteredLogs.length - 1];
     const parsedLogs = parseEventLogs({
       abi: [
-        parseAbiItem("event MintForFID(address indexed to, uint256 indexed tokenId, uint256 fid)"),
+        parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
       ],
-      eventName: "MintForFID",
+      eventName: "Mint",
       logs: [latestLog],
     });
 

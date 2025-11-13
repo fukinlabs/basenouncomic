@@ -27,6 +27,7 @@ export default function MintPage() {
   const [userNFT, setUserNFT] = useState<{ tokenId: string; image?: string; name?: string } | null>(null);
   const [isLoadingNFT, setIsLoadingNFT] = useState(false);
   const [isSignedOut, setIsSignedOut] = useState(false);
+  const [tokenIdError, setTokenIdError] = useState<string | null>(null);
 
   // Call ready when interface is fully loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
@@ -262,16 +263,34 @@ export default function MintPage() {
               return;
             }
             
-            // Fetch metadata to get image
+            // Fetch metadata to get image and verify tokenId from metadata
             try {
               const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
               console.log("Metadata response status:", metadataResponse.status);
               if (metadataResponse.ok) {
                 const metadata = await metadataResponse.json();
                 console.log("Metadata:", metadata);
+                
+                // Extract tokenId from metadata.name (e.g., "Farcaster Abtract #0" → "0")
+                // This ensures we use the tokenId from contract metadata (_safeMint, _setTokenURI)
+                let verifiedTokenId = tokenIdStr;
+                if (metadata.name && typeof metadata.name === 'string') {
+                  // Extract tokenId from name format: "Farcaster Abtract #0"
+                  const nameMatch = metadata.name.match(/#(\d+)$/);
+                  if (nameMatch && nameMatch[1]) {
+                    verifiedTokenId = nameMatch[1];
+                    console.log("TokenId extracted from metadata.name:", verifiedTokenId);
+                    
+                    // Verify tokenId matches (should be the same)
+                    if (verifiedTokenId !== tokenIdStr) {
+                      console.warn(`TokenId mismatch: metadata has ${verifiedTokenId}, event has ${tokenIdStr}. Using metadata tokenId.`);
+                    }
+                  }
+                }
+                
                 if (isMounted) {
                   setUserNFT({
-                    tokenId: tokenIdStr,
+                    tokenId: verifiedTokenId, // Use tokenId from metadata (from contract)
                     image: metadata.image,
                     name: metadata.name,
                   });
@@ -333,6 +352,161 @@ export default function MintPage() {
     };
   }, [fid]);
 
+  // Fetch tokenId from contract when isAlreadyMinted is true but userNFT.tokenId is not available
+  // This ensures the "View My NFT" button always has the correct tokenId from contract
+  // Reads tokenId from contract via /api/nft-by-fid which queries Mint events
+  useEffect(() => {
+    let isMounted = true;
+    let hasFetched = false;
+    
+    const fetchTokenIdFromContract = async () => {
+      // Only fetch if FID is minted but we don't have tokenId yet
+      if (!isAlreadyMinted || !fid || isNaN(Number(fid))) {
+        return;
+      }
+      
+      // Skip if we already have tokenId
+      if (userNFT?.tokenId || mintedTokenId) {
+        return;
+      }
+      
+      // Prevent duplicate fetches
+      if (hasFetched) {
+        return;
+      }
+      
+      hasFetched = true;
+      
+      try {
+        setIsLoadingNFT(true);
+        setTokenIdError(null);
+        
+        // Fetch tokenId from /api/nft-by-fid (reads from contract via Mint event)
+        const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid)}`);
+        
+        if (!isMounted) return;
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("TokenId from contract (Mint event):", data.tokenId);
+          
+          // Validate tokenId from Mint event
+          if (data.tokenId && data.tokenId !== "0" && data.tokenId !== "undefined" && data.tokenId !== "null") {
+            const tokenIdStr = String(data.tokenId).trim();
+            
+            if (/^\d+$/.test(tokenIdStr) && tokenIdStr !== "0") {
+              // Verify tokenId from metadata (read from tokenURI)
+              try {
+                const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
+                if (metadataResponse.ok) {
+                  const metadata = await metadataResponse.json();
+                  
+                  // Extract tokenId from metadata.name (from contract _setTokenURI)
+                  let verifiedTokenId = tokenIdStr;
+                  if (metadata.name && typeof metadata.name === 'string') {
+                    const nameMatch = metadata.name.match(/#(\d+)$/);
+                    if (nameMatch && nameMatch[1]) {
+                      verifiedTokenId = nameMatch[1];
+                      console.log("TokenId verified from metadata.name:", verifiedTokenId);
+                      
+                      // Use tokenId from metadata (from contract _setTokenURI)
+                      if (isMounted && !userNFT?.tokenId) {
+                        setUserNFT({
+                          tokenId: verifiedTokenId, // Use tokenId from metadata (from contract)
+                          image: metadata.image,
+                          name: metadata.name,
+                        });
+                        setTokenIdError(null);
+                        setIsLoadingNFT(false);
+                        return; // Success, exit early
+                      }
+                    }
+                  }
+                } else {
+                  // Metadata fetch failed, but we have tokenId from Mint event
+                  console.warn("Could not fetch metadata, using Mint event tokenId");
+                }
+              } catch (metadataError) {
+                console.warn("Could not verify tokenId from metadata, using Mint event tokenId:", metadataError);
+              }
+              
+              // Fallback: Use tokenId from Mint event if metadata verification fails
+              if (isMounted && !userNFT?.tokenId) {
+                setUserNFT({
+                  tokenId: tokenIdStr,
+                });
+                setTokenIdError(null);
+                setIsLoadingNFT(false);
+                return;
+              }
+            } else {
+              // Invalid tokenId format
+              if (isMounted) {
+                setTokenIdError("Invalid tokenId format from contract");
+                setIsLoadingNFT(false);
+              }
+            }
+          } else {
+            // No tokenId in response
+            if (isMounted) {
+              setTokenIdError("TokenId not found in contract response");
+              setIsLoadingNFT(false);
+            }
+          }
+        } else {
+          // API error - parse error message from response
+          const errorData = await response.json().catch(() => ({}));
+          let errorMessage = errorData.error || `Failed to fetch tokenId (${response.status})`;
+          
+          // Provide more specific error messages based on status code
+          if (response.status === 404) {
+            if (errorData.error?.includes("Mint event not found")) {
+              errorMessage = "Mint event not found. The NFT may have been minted too long ago, or the blockchain search range is limited. Please try again later.";
+            } else if (errorData.error?.includes("FID has not been minted")) {
+              errorMessage = "This FID has not been minted yet.";
+            } else {
+              errorMessage = "NFT not found for this FID. Mint event may not be in the search range.";
+            }
+          } else if (response.status === 503) {
+            errorMessage = "RPC service temporarily unavailable. Please try again in a few moments.";
+          } else if (response.status === 500) {
+            if (errorData.error?.includes("Failed to parse mint event")) {
+              errorMessage = "Failed to parse mint event. The contract data may be corrupted.";
+            } else if (errorData.error?.includes("TokenId not found in event")) {
+              errorMessage = "TokenId not found in mint event. This may indicate a contract issue.";
+            } else {
+              errorMessage = "Server error while fetching tokenId. Please try again.";
+            }
+          }
+          
+          console.error("Error fetching tokenId from contract:", errorMessage, "Status:", response.status, "Details:", errorData);
+          
+          if (isMounted) {
+            setTokenIdError(errorMessage);
+            setIsLoadingNFT(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching tokenId from contract:", error);
+        if (isMounted) {
+          setTokenIdError(error instanceof Error ? error.message : "Failed to fetch tokenId from contract");
+          setIsLoadingNFT(false);
+        }
+        hasFetched = false; // Allow retry on error
+      }
+    };
+    
+    // Small delay to avoid race condition with main fetchUserNFT
+    const timeoutId = setTimeout(() => {
+      fetchTokenIdFromContract();
+    }, 500);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [isAlreadyMinted, fid, userNFT?.tokenId, mintedTokenId]);
+
   const { 
     writeContract, 
     data: hash, 
@@ -364,24 +538,14 @@ export default function MintPage() {
     }
   }, [writeError]);
 
-  // Handle successful mint - use FID as tokenId (smart contract uses fid = tokenId)
+  // Handle successful mint - use tokenId from Mint event (smart contract uses tokenId = nextId++)
   useEffect(() => {
     let isMounted = true;
     
-    const setTokenIdFromFid = async () => {
+    const setTokenIdFromEvent = async () => {
       if (isConfirmed && hash) {
         try {
-          // Smart contract uses fid = tokenId, so use fid directly
-          if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
-            if (isMounted) {
-              setMintedTokenId(fid.trim());
-              console.log("Minted tokenId (using FID):", fid.trim());
-            }
-          } else {
-            console.error("Cannot set tokenId: invalid FID");
-          }
-          
-          // Optionally verify by parsing event (but use fid as primary source)
+          // Parse Mint event to get actual tokenId (smart contract uses tokenId = nextId++)
           try {
             const { createPublicClient, http, parseEventLogs } = await import("viem");
             const { base } = await import("viem/chains");
@@ -395,7 +559,7 @@ export default function MintPage() {
             
             if (!isMounted) return;
             
-            // Parse Mint event to verify (but fid is the source of truth)
+            // Parse Mint event to get tokenId (smart contract uses tokenId = nextId++)
             const mintEvents = parseEventLogs({
               abi: contractABI,
               eventName: "Mint",
@@ -410,21 +574,79 @@ export default function MintPage() {
               
               console.log("Mint event - tokenId:", eventTokenId, "fid:", eventFid);
               
-              // Verify that event tokenId matches fid (for contracts where tokenId = fid)
+              // Use tokenId from event (smart contract uses tokenId = nextId++)
+              if (eventTokenId && eventTokenId !== "0" && eventTokenId !== "undefined" && eventTokenId !== "null") {
+                if (isMounted) {
+                  setMintedTokenId(eventTokenId);
+                  console.log("✅ Minted tokenId (from event):", eventTokenId);
+                }
+              } else {
+                console.error("Invalid tokenId from event:", eventTokenId);
+                // Fallback: try to fetch from /api/nft-by-fid
+                if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+                  try {
+                    const nftResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid.trim())}`);
+                    if (nftResponse.ok) {
+                      const nftData = await nftResponse.json();
+                      if (nftData.tokenId && nftData.tokenId !== "0") {
+                        if (isMounted) {
+                          setMintedTokenId(nftData.tokenId);
+                          console.log("✅ Minted tokenId (from API):", nftData.tokenId);
+                        }
+                      }
+                    }
+                  } catch (apiError) {
+                    console.error("Error fetching tokenId from API:", apiError);
+                  }
+                }
+              }
+              
+              // Verify that event FID matches current FID
               if (eventFid && eventFid === fid) {
                 console.log("✅ Verified: Event FID matches current FID");
               }
+            } else {
+              console.warn("No Mint event found in transaction");
+              // Fallback: try to fetch from /api/nft-by-fid
+              if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+                try {
+                  const nftResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid.trim())}`);
+                  if (nftResponse.ok) {
+                    const nftData = await nftResponse.json();
+                    if (nftData.tokenId && nftData.tokenId !== "0") {
+                      if (isMounted) {
+                        setMintedTokenId(nftData.tokenId);
+                        console.log("✅ Minted tokenId (from API fallback):", nftData.tokenId);
+                      }
+                    }
+                  }
+                } catch (apiError) {
+                  console.error("Error fetching tokenId from API:", apiError);
+                }
+              }
             }
           } catch (eventError) {
-            // Event parsing is optional, don't fail if it errors
-            console.warn("Could not parse Mint event (non-critical):", eventError);
+            // Event parsing failed, try to fetch from /api/nft-by-fid
+            console.warn("Could not parse Mint event, trying API fallback:", eventError);
+            if (fid && fid.trim() !== "" && !isNaN(Number(fid))) {
+              try {
+                const nftResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid.trim())}`);
+                if (nftResponse.ok) {
+                  const nftData = await nftResponse.json();
+                  if (nftData.tokenId && nftData.tokenId !== "0") {
+                    if (isMounted) {
+                      setMintedTokenId(nftData.tokenId);
+                      console.log("✅ Minted tokenId (from API fallback):", nftData.tokenId);
+                    }
+                  }
+                }
+              } catch (apiError) {
+                console.error("Error fetching tokenId from API:", apiError);
+              }
+            }
           }
         } catch (error) {
           console.error("Error setting tokenId:", error);
-          // Still try to use fid as tokenId if available
-          if (isMounted && fid && fid.trim() !== "" && !isNaN(Number(fid))) {
-            setMintedTokenId(fid.trim());
-          }
         } finally {
           if (isMounted) {
             setIsMinting(false);
@@ -433,13 +655,13 @@ export default function MintPage() {
       }
     };
     
-    setTokenIdFromFid();
+    setTokenIdFromEvent();
     
     // Cleanup function to prevent state updates after unmount
     return () => {
       isMounted = false;
     };
-  }, [isConfirmed, hash, fid]); // Include fid since we use it as tokenId
+  }, [isConfirmed, hash, fid]);
 
 
   const handleMint = async () => {
@@ -633,10 +855,24 @@ export default function MintPage() {
   // Generate single art preview - full screen
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [artSeed, setArtSeed] = useState<string | null>(null); // Use tokenId if available, otherwise FID
 
-  // Generate art when FID changes and canvas is ready
+  // Update artSeed: prefer tokenId (from minted NFT) over FID (for preview)
   useEffect(() => {
-    if (!fid || isNaN(Number(fid)) || !canvasReady) return;
+    // If we have mintedTokenId, use it as seed (art should match tokenId)
+    // Otherwise, use FID for preview (before mint)
+    if (mintedTokenId) {
+      setArtSeed(mintedTokenId);
+    } else if (fid && !isNaN(Number(fid))) {
+      setArtSeed(fid);
+    } else {
+      setArtSeed(null);
+    }
+  }, [mintedTokenId, fid]);
+
+  // Generate art when artSeed changes and canvas is ready
+  useEffect(() => {
+    if (!artSeed || !canvasReady) return;
 
     // Use requestAnimationFrame to ensure canvas is fully rendered
     const frameId = requestAnimationFrame(() => {
@@ -646,8 +882,9 @@ export default function MintPage() {
           canvasRef.current.width = 600;
           canvasRef.current.height = 600;
           
-          // Generate art using FID as seed
-          generateArt(canvasRef.current, { tokenId: fid });
+          // Generate art using tokenId as seed (if minted) or FID (for preview)
+          // After mint, art will use tokenId to match the NFT
+          generateArt(canvasRef.current, { tokenId: artSeed });
           
           // Update imageBase64 when canvas is ready
           // Use JPEG with quality 0.85 for smaller file size (PNG doesn't support quality parameter)
@@ -667,15 +904,15 @@ export default function MintPage() {
     });
 
     return () => cancelAnimationFrame(frameId);
-  }, [fid, canvasReady]);
+  }, [artSeed, canvasReady]);
 
-  // Check if canvas is mounted and reset when FID changes
+  // Check if canvas is mounted and reset when artSeed changes
   useEffect(() => {
-    // Reset when FID changes
+    // Reset when artSeed changes (FID or tokenId)
     setCanvasReady(false);
     setImageBase64(""); // Clear previous image
     
-    if (!fid || isNaN(Number(fid))) {
+    if (!artSeed) {
       return;
     }
     
@@ -708,7 +945,7 @@ export default function MintPage() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [fid]);
+  }, [artSeed]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">
@@ -904,14 +1141,91 @@ export default function MintPage() {
                     ⚠️ This FID has already been minted. Each FID can only mint once.
                   </p>
                 </div>
-                {/* View NFT Button - Smart contract uses tokenId = nextId++, so use userNFT.tokenId from /api/nft-by-fid */}
-                {userNFT?.tokenId ? (
+                {/* View NFT Button - Use tokenId from smart contract (_safeMint, _setTokenURI, emit Mint) */}
+                {(userNFT?.tokenId || mintedTokenId) ? (
                   <a
-                    href={`/mint/${userNFT.tokenId}`}
+                    href={`/mint/${userNFT?.tokenId || mintedTokenId}`}
                     className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
                   >
-                    🎨 View My NFT → tt
+                    🎨 View My NFT →
                   </a>
+                ) : isLoadingNFT ? (
+                  // Loading: Fetching tokenId from contract (Mint event)
+                  <div className="block w-full px-6 py-3 bg-gray-400 text-white rounded-full text-center font-semibold cursor-not-allowed">
+                    Loading tokenId from contract...
+                  </div>
+                ) : tokenIdError ? (
+                  // Error: Show error message and retry button
+                  <div className="w-full space-y-2">
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-full">
+                      <p className="text-sm text-red-700 text-center">
+                        ⚠️ {tokenIdError}
+                      </p>
+                      <p className="text-xs text-red-600 text-center mt-1">
+                        TokenId is required to view your NFT. This value comes from the smart contract Mint event.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setTokenIdError(null);
+                        setIsLoadingNFT(true);
+                        // Reset hasFetched flag to allow retry
+                        const fetchTokenId = async () => {
+                          try {
+                            const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid || "")}`);
+                            if (response.ok) {
+                              const data = await response.json();
+                              if (data.tokenId && data.tokenId !== "0") {
+                                // Verify from metadata
+                                try {
+                                  const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(String(data.tokenId))}`);
+                                  if (metadataResponse.ok) {
+                                    const metadata = await metadataResponse.json();
+                                    let verifiedTokenId = String(data.tokenId);
+                                    if (metadata.name && typeof metadata.name === 'string') {
+                                      const nameMatch = metadata.name.match(/#(\d+)$/);
+                                      if (nameMatch && nameMatch[1]) {
+                                        verifiedTokenId = nameMatch[1];
+                                      }
+                                    }
+                                    setUserNFT({ 
+                                      tokenId: verifiedTokenId,
+                                      image: metadata.image,
+                                      name: metadata.name,
+                                    });
+                                    setTokenIdError(null);
+                                  } else {
+                                    // Use tokenId from Mint event if metadata fails
+                                    setUserNFT({ tokenId: String(data.tokenId) });
+                                    setTokenIdError(null);
+                                  }
+                                } catch (metadataError) {
+                                  // Use tokenId from Mint event if metadata verification fails
+                                  console.warn("Metadata verification failed, using Mint event tokenId:", metadataError);
+                                  setUserNFT({ tokenId: String(data.tokenId) });
+                                  setTokenIdError(null);
+                                }
+                              } else {
+                                setTokenIdError("TokenId not found in response. Please try again.");
+                              }
+                            } else {
+                              const errorData = await response.json().catch(() => ({}));
+                              setTokenIdError(errorData.error || "Failed to fetch tokenId. Please try again.");
+                            }
+                          } catch (error) {
+                            console.error("Retry error:", error);
+                            setTokenIdError(error instanceof Error ? error.message : "Failed to fetch tokenId. Please try again.");
+                          } finally {
+                            setIsLoadingNFT(false);
+                          }
+                        };
+                        fetchTokenId();
+                      }}
+                      className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
+                    >
+                      🔄 Retry Fetching TokenId
+                    </button>
+                  </div>
                 ) : null}
               </div>
             )}
