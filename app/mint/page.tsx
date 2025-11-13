@@ -1085,7 +1085,8 @@ export default function MintPage() {
         ) : (
           <div className="flex flex-col items-center space-y-6">
             {/* Single Art Preview - Full Screen */}
-            {fid && (
+            {/* Only show canvas preview if user doesn't have NFT yet (no userNFT) */}
+            {fid && !userNFT && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                   <canvas
@@ -1122,7 +1123,7 @@ export default function MintPage() {
                         alt={userNFT.name || `NFT #${userNFT.tokenId}`}
                         width={400}
                         height={400}
-                        className="w-full h-auto rounded-full shadow-md"
+                        className="w-full h-auto shadow-md"
                         unoptimized
                         onError={() => {
                           // Image will fallback to placeholder
