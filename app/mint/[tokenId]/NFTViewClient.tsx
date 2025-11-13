@@ -198,17 +198,17 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-2xl text-center">
-        <h1 className="text-4xl font-bold mb-4">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-gray-50 to-white">
+      <div className="w-full max-w-3xl text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-gray-900">
           {metadata?.name || `NFT #${tokenId}`}
         </h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">
           {metadata?.description || `This NFT was minted on ${minikitConfig.miniapp.name}`}
         </p>
 
-        <div className="bg-white p-8 rounded-lg shadow-lg mb-8">
-          <div className="flex justify-center mb-4">
+        <div className="bg-white p-4 sm:p-8 rounded-xl shadow-xl mb-6 sm:mb-8 border border-gray-200">
+          <div className="flex justify-center mb-6">
             {isLoading ? (
               <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
                 <p className="text-gray-500">Loading NFT...</p>
@@ -252,7 +252,21 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             )}
           </div>
           <div className="text-left">
-            <h2 className="text-xl font-semibold mb-2">Token ID: {tokenId}</h2>
+            {/* Token ID and FID Info */}
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-blue-900 mb-1">Token ID</h3>
+                  <p className="text-lg font-mono text-blue-700">{tokenId}</p>
+                </div>
+                {fid && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-blue-900 mb-1">Farcaster FID</h3>
+                    <p className="text-lg font-mono text-blue-700">{fid}</p>
+                  </div>
+                )}
+              </div>
+            </div>
             
             {/* Farcaster User Info */}
             {farcasterUser && (
@@ -282,10 +296,10 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                 )}
                 <div className="flex gap-4 mt-2 text-xs text-purple-600">
                   {farcasterUser.followersCount !== undefined && (
-                    <span>👥 {farcasterUser.followersCount} followers</span>
+                    <span>👥 {farcasterUser.followersCount.toLocaleString()} followers</span>
                   )}
                   {farcasterUser.castsCount !== undefined && (
-                    <span>📝 {farcasterUser.castsCount} casts</span>
+                    <span>📝 {farcasterUser.castsCount.toLocaleString()} casts</span>
                   )}
                 </div>
               </div>
@@ -293,31 +307,44 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             
             {metadata?.attributes && metadata.attributes.length > 0 && (
               <div className="mb-4">
-                <h3 className="text-lg font-semibold mb-2">Attributes:</h3>
-                <div className="flex flex-wrap gap-2">
+                <h3 className="text-lg font-semibold mb-3">Attributes</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {metadata.attributes.map((attr, idx) => (
                     <div 
                       key={idx}
-                      className="bg-gray-100 px-3 py-1 rounded-full text-sm"
+                      className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg border border-gray-200"
                     >
-                      <span className="font-semibold">{attr.trait_type}:</span>{" "}
-                      <span>{attr.value}</span>
+                      <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                        {attr.trait_type}
+                      </div>
+                      <div className="text-base font-semibold text-gray-900">
+                        {attr.value}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
             {error && !error.includes("not been minted") && (
-              <div className="bg-yellow-50 p-4 rounded-lg mb-4">
+              <div className="bg-yellow-50 p-4 rounded-lg mb-4 border border-yellow-200">
                 <p className="text-sm text-yellow-800">{error}</p>
               </div>
             )}
-            <p className="text-gray-600 mb-4">
-              Share this page to show off your NFT in Farcaster feeds!
-            </p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-800">
-                💡 Tip: When you share this URL in a Farcaster cast, it will appear as a rich embed
+            
+            {/* Description Section */}
+            {metadata?.description && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
+                <p className="text-sm text-gray-600">{metadata.description}</p>
+              </div>
+            )}
+            
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
+              <p className="text-sm text-blue-800 font-medium mb-2">
+                💡 Share this NFT
+              </p>
+              <p className="text-xs text-blue-700">
+                When you share this URL in a Farcaster cast, it will appear as a rich embed
                 with a button to view the NFT directly in the app.
               </p>
             </div>
@@ -330,21 +357,21 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             <button
               onClick={handleShareFarcaster}
               disabled={isSharing}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               {isSharing ? "Sharing..." : "📱 Share on Farcaster"}
             </button>
             
             <button
               onClick={handleShareTwitter}
-              className="px-6 py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors font-semibold"
+              className="px-6 py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               🐦 Share on Twitter/X
             </button>
             
             <button
               onClick={handleCopyLink}
-              className={`px-6 py-3 rounded-lg transition-colors font-semibold ${
+              className={`px-6 py-3 rounded-lg transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
                 copySuccess
                   ? "bg-green-600 text-white"
                   : "bg-gray-600 text-white hover:bg-gray-700"
@@ -354,12 +381,20 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             </button>
           </div>
 
-          <Link
-            href="/mint"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Mint Another NFT
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/mint"
+              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-center"
+            >
+              🎨 Mint Another NFT
+            </Link>
+            <Link
+              href="/gallery"
+              className="inline-block px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-center"
+            >
+              🖼️ View Gallery
+            </Link>
+          </div>
         </div>
       </div>
     </main>
