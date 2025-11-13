@@ -81,25 +81,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Search for Mint event to find tokenId
-    // Use smaller search range to avoid RPC timeout (503 errors)
-    // Start with last 5000 blocks, then expand if needed
+    // Try multiple search ranges to find the event (NFT may have been minted long ago)
+    // Start with larger range, then reduce if timeout
     let logs: Log[] = [];
-    try {
-      const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock > BigInt(5000) ? currentBlock - BigInt(5000) : BigInt(0);
-
-      logs = await publicClient.getLogs({
-        address: NFT_CONTRACT_ADDRESS,
-        event: parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
-        fromBlock,
-        toBlock: "latest",
-      });
-    } catch (error) {
-      console.error("Error fetching logs, trying smaller range:", error);
-      // Try with even smaller range if first attempt fails
+    const searchRanges = [20000, 10000, 5000, 2000, 1000]; // Try from largest to smallest
+    
+    for (const range of searchRanges) {
       try {
         const currentBlock = await publicClient.getBlockNumber();
-        const fromBlock = currentBlock > BigInt(1000) ? currentBlock - BigInt(1000) : BigInt(0);
+        const fromBlock = currentBlock > BigInt(range) ? currentBlock - BigInt(range) : BigInt(0);
+        
+        console.log(`Searching Mint events for FID ${fidNum} in blocks ${fromBlock} to latest (range: ${range})`);
         
         logs = await publicClient.getLogs({
           address: NFT_CONTRACT_ADDRESS,
@@ -107,9 +99,17 @@ export async function GET(request: NextRequest) {
           fromBlock,
           toBlock: "latest",
         });
-      } catch (retryError) {
-        console.error("Error fetching logs with smaller range:", retryError);
-        // Continue with empty logs array - will use fallback method
+        
+        console.log(`Found ${logs.length} Mint events in range ${range}`);
+        
+        // If we got logs, break and use them
+        if (logs.length > 0) {
+          break;
+        }
+      } catch (error) {
+        console.error(`Error fetching logs with range ${range}:`, error);
+        // Continue to next smaller range
+        continue;
       }
     }
 
@@ -130,11 +130,16 @@ export async function GET(request: NextRequest) {
     });
 
     if (filteredLogs.length === 0) {
-      // No Mint event found for this FID
+      // No Mint event found for this FID in search range
       // Smart contract uses tokenId = nextId++ (not fid = tokenId)
-      // Cannot determine tokenId without event, return error
+      // Cannot determine tokenId without event
+      console.error(`No Mint event found for FID ${fidNum} in search range. Total logs searched: ${logs.length}`);
       return NextResponse.json(
-        { error: "NFT not found for this FID. Mint event not found.", minted: true },
+        { 
+          error: "Mint event not found for this FID. The NFT may have been minted outside the search range. Please try again later or contact support.", 
+          minted: true,
+          details: `Searched ${logs.length} total Mint events, but none matched FID ${fidNum}`
+        },
         { status: 404 }
       );
     }
@@ -150,22 +155,39 @@ export async function GET(request: NextRequest) {
     });
 
     if (parsedLogs.length === 0) {
+      console.error("Failed to parse mint event. Latest log:", latestLog);
       return NextResponse.json(
-        { error: "Failed to parse mint event", minted: true },
+        { 
+          error: "Failed to parse mint event. The contract data may be corrupted.", 
+          minted: true,
+          details: "Could not parse Mint event from blockchain logs"
+        },
         { status: 500 }
       );
     }
 
     const event = parsedLogs[0] as { args?: { tokenId?: bigint; to?: string; fid?: bigint } };
     const tokenId = event.args?.tokenId?.toString();
+    const eventFid = event.args?.fid?.toString();
+
+    // Verify FID matches
+    if (eventFid !== fidNum) {
+      console.error(`FID mismatch: expected ${fidNum}, got ${eventFid} from event`);
+    }
 
     if (!tokenId || tokenId === "0" || tokenId === "undefined" || tokenId === "null") {
-      console.error("Invalid tokenId from event:", tokenId, "Event args:", event.args);
+      console.error("Invalid tokenId from event:", tokenId, "Event args:", event.args, "FID:", eventFid);
       return NextResponse.json(
-        { error: "TokenId not found in event or invalid", minted: true },
+        { 
+          error: "TokenId not found in mint event. This may indicate a contract issue.", 
+          minted: true,
+          details: `Event args: ${JSON.stringify(event.args)}, FID: ${eventFid}`
+        },
         { status: 500 }
       );
     }
+
+    console.log(`✅ Found tokenId ${tokenId} for FID ${fidNum} from Mint event`);
 
     // Get tokenURI with error handling
     let tokenURI: string;

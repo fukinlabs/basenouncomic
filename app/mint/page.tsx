@@ -461,21 +461,21 @@ export default function MintPage() {
           // Provide more specific error messages based on status code
           if (response.status === 404) {
             if (errorData.error?.includes("Mint event not found")) {
-              errorMessage = "Mint event not found. The NFT may have been minted too long ago, or the blockchain search range is limited. Please try again later.";
+              errorMessage = errorData.error || "Mint event not found for this FID. The NFT may have been minted outside the search range. Please try again later or contact support.";
             } else if (errorData.error?.includes("FID has not been minted")) {
               errorMessage = "This FID has not been minted yet.";
             } else {
-              errorMessage = "NFT not found for this FID. Mint event may not be in the search range.";
+              errorMessage = errorData.error || "NFT not found for this FID. Mint event may not be in the search range.";
             }
           } else if (response.status === 503) {
             errorMessage = "RPC service temporarily unavailable. Please try again in a few moments.";
           } else if (response.status === 500) {
             if (errorData.error?.includes("Failed to parse mint event")) {
-              errorMessage = "Failed to parse mint event. The contract data may be corrupted.";
-            } else if (errorData.error?.includes("TokenId not found in event")) {
-              errorMessage = "TokenId not found in mint event. This may indicate a contract issue.";
+              errorMessage = errorData.error || "Failed to parse mint event. The contract data may be corrupted.";
+            } else if (errorData.error?.includes("TokenId not found in mint event")) {
+              errorMessage = errorData.error || "TokenId not found in mint event. This may indicate a contract issue.";
             } else {
-              errorMessage = "Server error while fetching tokenId. Please try again.";
+              errorMessage = errorData.error || "Server error while fetching tokenId. Please try again.";
             }
           }
           
