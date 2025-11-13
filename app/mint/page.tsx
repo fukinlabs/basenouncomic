@@ -206,7 +206,8 @@ export default function MintPage() {
   };
 
   // Check if FID has already been minted
-  const { data: mintedFidResult, refetch: refetchMintedFid } = useReadContract({
+  // Contract address: 0xBc3BB4918D53E11B29920FD339cce8781a45ABf4
+  const { data: mintedFidResult, refetch: refetchMintedFid, error: mintedFidError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: contractABI,
     functionName: "mintedFid",
@@ -215,6 +216,21 @@ export default function MintPage() {
       enabled: !!fid && !isNaN(Number(fid)),
     },
   });
+  
+  // Log contract address for debugging
+  useEffect(() => {
+    if (fid) {
+      console.log("Checking mintedFid for FID:", fid, "on contract:", NFT_CONTRACT_ADDRESS);
+    }
+  }, [fid]);
+  
+  // Log error if contract call fails
+  useEffect(() => {
+    if (mintedFidError) {
+      console.error("Error checking mintedFid:", mintedFidError);
+      console.error("Contract address:", NFT_CONTRACT_ADDRESS);
+    }
+  }, [mintedFidError]);
 
   // Update isAlreadyMinted state when mintedFidResult changes
   useEffect(() => {
@@ -250,13 +266,13 @@ export default function MintPage() {
           const data = await response.json();
           console.log("NFT by FID response:", data);
           
-          // Validate tokenId - must be a valid number and not "0"
-          if (data.tokenId && data.tokenId !== "0" && data.tokenId !== "undefined" && data.tokenId !== "null") {
+          // Validate tokenId - must be a valid number (including "0" for first NFT)
+          if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null") {
             const tokenIdStr = String(data.tokenId).trim();
             
-            // Double check tokenId is valid
-            if (!/^\d+$/.test(tokenIdStr) || tokenIdStr === "0") {
-              console.error("Invalid tokenId:", tokenIdStr);
+            // Double check tokenId is valid (accept "0" for first NFT)
+            if (!/^\d+$/.test(tokenIdStr)) {
+              console.error("Invalid tokenId format:", tokenIdStr);
               if (isMounted) {
                 setUserNFT(null);
               }
@@ -390,11 +406,11 @@ export default function MintPage() {
           const data = await response.json();
           console.log("TokenId from contract (Mint event):", data.tokenId);
           
-          // Validate tokenId from Mint event
-          if (data.tokenId && data.tokenId !== "0" && data.tokenId !== "undefined" && data.tokenId !== "null") {
+          // Validate tokenId from Mint event (accept "0" for first NFT)
+          if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null") {
             const tokenIdStr = String(data.tokenId).trim();
             
-            if (/^\d+$/.test(tokenIdStr) && tokenIdStr !== "0") {
+            if (/^\d+$/.test(tokenIdStr)) {
               // Verify tokenId from metadata (read from tokenURI)
               try {
                 const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
@@ -575,10 +591,11 @@ export default function MintPage() {
               console.log("Mint event - tokenId:", eventTokenId, "fid:", eventFid);
               
               // Use tokenId from event (smart contract uses tokenId = nextId++)
-              if (eventTokenId && eventTokenId !== "0" && eventTokenId !== "undefined" && eventTokenId !== "null") {
+              // ✅ Accept tokenId = "0" (first NFT minted)
+              if (eventTokenId && eventTokenId !== "undefined" && eventTokenId !== "null" && /^\d+$/.test(eventTokenId)) {
                 if (isMounted) {
                   setMintedTokenId(eventTokenId);
-                  console.log("✅ Minted tokenId (from event):", eventTokenId);
+                  console.log("✅ Minted tokenId (from event):", eventTokenId, "FID:", eventFid);
                 }
               } else {
                 console.error("Invalid tokenId from event:", eventTokenId);
@@ -588,7 +605,8 @@ export default function MintPage() {
                     const nftResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid.trim())}`);
                     if (nftResponse.ok) {
                       const nftData = await nftResponse.json();
-                      if (nftData.tokenId && nftData.tokenId !== "0") {
+                      // ✅ Accept tokenId = "0" (first NFT minted)
+                      if (nftData.tokenId && nftData.tokenId !== "undefined" && nftData.tokenId !== "null" && /^\d+$/.test(nftData.tokenId)) {
                         if (isMounted) {
                           setMintedTokenId(nftData.tokenId);
                           console.log("✅ Minted tokenId (from API):", nftData.tokenId);
@@ -613,7 +631,8 @@ export default function MintPage() {
                   const nftResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid.trim())}`);
                   if (nftResponse.ok) {
                     const nftData = await nftResponse.json();
-                    if (nftData.tokenId && nftData.tokenId !== "0") {
+                    // ✅ Accept tokenId = "0" (first NFT minted)
+                    if (nftData.tokenId && nftData.tokenId !== "undefined" && nftData.tokenId !== "null" && /^\d+$/.test(nftData.tokenId)) {
                       if (isMounted) {
                         setMintedTokenId(nftData.tokenId);
                         console.log("✅ Minted tokenId (from API fallback):", nftData.tokenId);
@@ -809,6 +828,10 @@ export default function MintPage() {
       }
 
       // Step 3: Call mint(to, fid, imageBase64) directly (no signature)
+      // Verify contract address before minting
+      console.log("Minting to contract:", NFT_CONTRACT_ADDRESS);
+      console.log("Mint args:", { to: address, fid, imageDataLength: imageData.length });
+      
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
@@ -1026,6 +1049,20 @@ export default function MintPage() {
             <div className="mb-4">
               <div className="text-6xl mb-4">✅</div>
               <h2 className="text-2xl font-bold mb-2">NFT Minted Successfully!</h2>
+              <div className="mb-4 p-4 bg-white rounded-lg border border-green-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600 mb-1">Token ID</p>
+                    <p className="text-lg font-mono text-gray-900">{mintedTokenId}</p>
+                  </div>
+                  {fid && (
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600 mb-1">Farcaster FID</p>
+                      <p className="text-lg font-mono text-gray-900">{fid}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
               <p className="text-gray-600 mb-4">
                 Transaction: {hash?.slice(0, 10)}...{hash?.slice(-8)}
               </p>
@@ -1175,7 +1212,8 @@ export default function MintPage() {
                             const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid || "")}`);
                             if (response.ok) {
                               const data = await response.json();
-                              if (data.tokenId && data.tokenId !== "0") {
+                              // ✅ Accept tokenId = "0" (first NFT minted)
+                              if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null" && /^\d+$/.test(String(data.tokenId))) {
                                 // Verify from metadata
                                 try {
                                   const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(String(data.tokenId))}`);

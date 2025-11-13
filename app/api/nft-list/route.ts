@@ -35,35 +35,105 @@ export async function GET(request: NextRequest) {
       // If nextId doesn't exist, we'll search events
     }
 
-    // Search for all MintForFID events
-    // Search from contract deployment (block 0) to latest
-    const fromBlock = BigInt(0); // Start from contract deployment
+    // Method 1: Use nextId to get all minted NFTs (more efficient)
+    // Loop through tokenId from 0 to nextId-1 and check ownerOf
+    const nfts: Array<{ tokenId: string; owner: string; fid?: string }> = [];
+    
+    if (totalSupply > 0) {
+      // Fetch all NFTs using ownerOf (from tokenId 0 to nextId-1)
+      // ✅ Accept tokenId = 0 (first NFT minted)
+      for (let i = 0; i < totalSupply; i++) {
+        try {
+          const owner = await publicClient.readContract({
+            address: NFT_CONTRACT_ADDRESS,
+            abi: [
+              parseAbiItem("function ownerOf(uint256 tokenId) view returns (address)"),
+            ],
+            functionName: "ownerOf",
+            args: [BigInt(i)],
+          });
+          
+          // If owner is not zero address, NFT exists
+          if (owner && owner !== "0x0000000000000000000000000000000000000000") {
+            // Try to get FID from metadata
+            let fid: string | undefined = undefined;
+            try {
+              const tokenURI = await publicClient.readContract({
+                address: NFT_CONTRACT_ADDRESS,
+                abi: [
+                  parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
+                ],
+                functionName: "tokenURI",
+                args: [BigInt(i)],
+              });
+              
+              // Parse metadata to get FID
+              if (tokenURI.startsWith("data:application/json;base64,")) {
+                const base64Data = tokenURI.replace("data:application/json;base64,", "");
+                const jsonStr = Buffer.from(base64Data, "base64").toString("utf-8");
+                const metadata = JSON.parse(jsonStr);
+                const fidAttr = metadata.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+                  attr.trait_type === "FID"
+                );
+                if (fidAttr && fidAttr.value) {
+                  fid = String(fidAttr.value);
+                }
+              }
+            } catch (metadataError) {
+              // If metadata fetch fails, continue without FID
+              console.warn(`Could not fetch metadata for tokenId ${i}:`, metadataError);
+            }
+            
+            nfts.push({
+              tokenId: String(i),
+              owner,
+              fid,
+            });
+          }
+        } catch (error) {
+          // If ownerOf fails, NFT doesn't exist (skip it)
+          // This can happen if there are gaps in tokenId sequence
+          console.warn(`TokenId ${i} does not exist:`, error);
+          continue;
+        }
+      }
+    } else {
+      // Fallback: Search for Mint events if nextId is not available
+      const fromBlock = BigInt(0);
+      
+      try {
+        const logs = await publicClient.getLogs({
+          address: NFT_CONTRACT_ADDRESS,
+          event: parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
+          fromBlock,
+          toBlock: "latest",
+        });
 
-    const logs = await publicClient.getLogs({
-      address: NFT_CONTRACT_ADDRESS,
-      event: parseAbiItem("event MintForFID(address indexed to, uint256 indexed tokenId, uint256 fid)"),
-      fromBlock,
-      toBlock: "latest",
-    });
+        // Parse all events
+        const parsedLogs = parseEventLogs({
+          abi: [
+            parseAbiItem("event Mint(address indexed to, uint256 indexed tokenId, uint256 fid)"),
+          ],
+          eventName: "Mint",
+          logs,
+        });
 
-    // Parse all events
-    const parsedLogs = parseEventLogs({
-      abi: [
-        parseAbiItem("event MintForFID(address indexed to, uint256 indexed tokenId, uint256 fid)"),
-      ],
-      eventName: "MintForFID",
-      logs,
-    });
-
-    // Extract NFT data from events
-    const nfts = parsedLogs.map((log) => {
-      const event = log as { args?: { tokenId?: bigint; to?: string; fid?: bigint } };
-      return {
-        tokenId: event.args?.tokenId?.toString() || "0",
-        owner: event.args?.to || "",
-        fid: event.args?.fid?.toString() || "0",
-      };
-    });
+        // Extract NFT data from events
+        parsedLogs.forEach((log) => {
+          const event = log as { args?: { tokenId?: bigint; to?: string; fid?: bigint } };
+          const tokenId = event.args?.tokenId?.toString();
+          if (tokenId && /^\d+$/.test(tokenId)) {
+            nfts.push({
+              tokenId,
+              owner: event.args?.to || "",
+              fid: event.args?.fid?.toString(),
+            });
+          }
+        });
+      } catch (eventError) {
+        console.error("Error fetching Mint events:", eventError);
+      }
+    }
 
     // Sort by tokenId (newest first)
     nfts.sort((a, b) => Number(b.tokenId) - Number(a.tokenId));

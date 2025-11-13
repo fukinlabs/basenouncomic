@@ -175,7 +175,9 @@ export async function GET(request: NextRequest) {
       console.error(`FID mismatch: expected ${fidNum}, got ${eventFid} from event`);
     }
 
-    if (!tokenId || tokenId === "0" || tokenId === "undefined" || tokenId === "null") {
+    // ✅ Accept tokenId = "0" (first NFT minted)
+    // Validate tokenId is a valid number (including "0")
+    if (!tokenId || tokenId === "undefined" || tokenId === "null" || !/^\d+$/.test(tokenId)) {
       console.error("Invalid tokenId from event:", tokenId, "Event args:", event.args, "FID:", eventFid);
       return NextResponse.json(
         { 
