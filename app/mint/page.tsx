@@ -877,6 +877,7 @@ export default function MintPage() {
 
   // Generate single art preview - full screen
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const userNFTCanvasRef = useRef<HTMLCanvasElement | null>(null); // Canvas for displaying minted NFT
   const [canvasReady, setCanvasReady] = useState(false);
   const [artSeed, setArtSeed] = useState<string | null>(null); // Use tokenId if available, otherwise FID
 
@@ -969,6 +970,29 @@ export default function MintPage() {
       clearTimeout(timeoutId);
     };
   }, [artSeed]);
+
+  // Generate art on userNFTCanvasRef when userNFT.tokenId is available (fast loading - no image fetch needed)
+  useEffect(() => {
+    if (!userNFT?.tokenId || !userNFTCanvasRef.current) return;
+
+    const frameId = requestAnimationFrame(() => {
+      if (userNFTCanvasRef.current) {
+        try {
+          // Set canvas size (600x600 for high resolution)
+          userNFTCanvasRef.current.width = 600;
+          userNFTCanvasRef.current.height = 600;
+          
+          // Generate art using tokenId as seed (matches the minted NFT)
+          // This is much faster than loading image from metadata
+          generateArt(userNFTCanvasRef.current, { tokenId: userNFT.tokenId });
+        } catch (error) {
+          console.error("Error generating NFT art on canvas:", error);
+        }
+      }
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [userNFT?.tokenId]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">
@@ -1116,24 +1140,17 @@ export default function MintPage() {
                    {userNFT.name || `NFT #${userNFT.tokenId}`}
                 </h3>
                 <div className="flex flex-col items-center space-y-3">
-                  {userNFT.image ? (
+                  {userNFT.tokenId ? (
                     <div className="w-full max-w-xs relative">
-                      <Image
-                        src={userNFT.image}
-                        alt={userNFT.name || `NFT #${userNFT.tokenId}`}
-                        width={400}
-                        height={400}
-                        className="w-full h-auto shadow-md"
-                        unoptimized
-                        onError={() => {
-                          // Image will fallback to placeholder
-                          setUserNFT({ ...userNFT, image: undefined });
-                        }}
-                      />
-                    </div>
-                  ) : userNFT.tokenId ? (
-                    <div className="w-full max-w-xs aspect-square bg-gray-100 rounded-full flex items-center justify-center">
-                      <p className="text-gray-500">Loading image...</p>
+                      <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                        <canvas
+                          ref={userNFTCanvasRef}
+                          width={600}
+                          height={600}
+                          className="w-full h-full object-contain"
+                          style={{ imageRendering: 'auto' }}
+                        />
+                      </div>
                     </div>
                   ) : null}
                   {userNFT.tokenId && (
@@ -1298,31 +1315,49 @@ export default function MintPage() {
                   </button>
                 ) : !isSignedOut && fid ? (
                   // Show Mint button if we have FID (from context or sign in)
-                  <button
-                    onClick={handleMint}
-                    disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
-                    className="h-12 w-48  nf_m max-w-xs px-8 py-4 rounded-full disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
-                    style={{
-                      backgroundColor: (isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true) ? '#9ca3af' : '#9333ea',
-                      color: '#ffffff',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                  // If already minted, show View NFT button instead
+                  isAlreadyMinted === true && (userNFT?.tokenId || mintedTokenId) ? (
+                    <a
+                      href={`/mint/${userNFT?.tokenId || mintedTokenId}`}
+                      className="h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center"
+                      style={{
+                        backgroundColor: '#9333ea',
+                        color: '#ffffff',
+                      }}
+                      onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = '#7e22ce';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                      }}
+                      onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = '#9333ea';
-                      }
-                    }}
-                  >
-                    {isMinting || isPendingWrite || isConfirming
-                      ? "Minting..."
-                      : isAlreadyMinted === true
-                      ? "ALREADY MINTED"
-                      : "MINT"}
-                  </button>
+                      }}
+                    >
+                      View NFT →
+                    </a>
+                  ) : (
+                    <button
+                      onClick={handleMint}
+                      disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
+                      className="h-12 w-48  nf_m max-w-xs px-8 py-4 rounded-full disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
+                      style={{
+                        backgroundColor: (isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true) ? '#9ca3af' : '#9333ea',
+                        color: '#ffffff',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                          e.currentTarget.style.backgroundColor = '#7e22ce';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                          e.currentTarget.style.backgroundColor = '#9333ea';
+                        }
+                      }}
+                    >
+                      {isMinting || isPendingWrite || isConfirming
+                        ? "Minting..."
+                        : "MINT"}
+                    </button>
+                  )
                 ) : null}
               </div>
 
