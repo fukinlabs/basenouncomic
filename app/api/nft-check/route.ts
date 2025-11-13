@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         functionName: "ownerOf",
         args: [BigInt(tokenIdNum)],
       });
-    } catch (error) {
+    } catch {
       // NFT doesn't exist (ERC721NonexistentToken error)
       return NextResponse.json(
         { 
