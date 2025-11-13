@@ -877,7 +877,6 @@ export default function MintPage() {
 
   // Generate single art preview - full screen
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const userNFTCanvasRef = useRef<HTMLCanvasElement | null>(null); // Canvas for displaying minted NFT
   const [canvasReady, setCanvasReady] = useState(false);
   const [artSeed, setArtSeed] = useState<string | null>(null); // Use tokenId if available, otherwise FID
 
@@ -970,28 +969,6 @@ export default function MintPage() {
       clearTimeout(timeoutId);
     };
   }, [artSeed]);
-
-  // Generate art on userNFTCanvasRef when userNFT.tokenId is available
-  useEffect(() => {
-    if (!userNFT?.tokenId || !userNFTCanvasRef.current) return;
-
-    const frameId = requestAnimationFrame(() => {
-      if (userNFTCanvasRef.current) {
-        try {
-          // Set canvas size (600x600 for high resolution)
-          userNFTCanvasRef.current.width = 600;
-          userNFTCanvasRef.current.height = 600;
-          
-          // Generate art using tokenId as seed (matches the minted NFT)
-          generateArt(userNFTCanvasRef.current, { tokenId: userNFT.tokenId });
-        } catch (error) {
-          console.error("Error generating NFT art on canvas:", error);
-        }
-      }
-    });
-
-    return () => cancelAnimationFrame(frameId);
-  }, [userNFT?.tokenId]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">
@@ -1136,20 +1113,27 @@ export default function MintPage() {
             {fid && !isLoadingNFT && userNFT && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <h3 className="text-lg font-semibold mb-3 text-center text-gray-800">
-                {userNFT.name || `NFT #${userNFT.tokenId}`}
+                   {userNFT.name || `NFT #${userNFT.tokenId}`}
                 </h3>
                 <div className="flex flex-col items-center space-y-3">
-                  {userNFT.tokenId ? (
+                  {userNFT.image ? (
                     <div className="w-full max-w-xs relative">
-                      <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                        <canvas
-                          ref={userNFTCanvasRef}
-                          width={600}
-                          height={600}
-                          className="w-full h-full object-contain"
-                          style={{ imageRendering: 'auto' }}
-                        />
-                      </div>
+                      <Image
+                        src={userNFT.image}
+                        alt={userNFT.name || `NFT #${userNFT.tokenId}`}
+                        width={400}
+                        height={400}
+                        className="w-full h-auto shadow-md"
+                        unoptimized
+                        onError={() => {
+                          // Image will fallback to placeholder
+                          setUserNFT({ ...userNFT, image: undefined });
+                        }}
+                      />
+                    </div>
+                  ) : userNFT.tokenId ? (
+                    <div className="w-full max-w-xs aspect-square bg-gray-100 rounded-full flex items-center justify-center">
+                      <p className="text-gray-500">Loading image...</p>
                     </div>
                   ) : null}
                   {userNFT.tokenId && (
