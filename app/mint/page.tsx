@@ -898,8 +898,12 @@ export default function MintPage() {
   }, [userNFT?.tokenId, mintedTokenId, fid]);
 
   // Generate art when artSeed changes and canvas is ready
+  // Use FID if available (matches NFTViewClient.tsx), otherwise use tokenId
   useEffect(() => {
-    if (!artSeed || !canvasReady) return;
+    // Priority: FID > tokenId (matches NFTViewClient.tsx: fid || tokenId)
+    const seedToUse = fid || artSeed;
+    
+    if (!seedToUse || !canvasReady) return;
 
     // Use requestAnimationFrame to ensure canvas is fully rendered
     const frameId = requestAnimationFrame(() => {
@@ -909,9 +913,8 @@ export default function MintPage() {
           canvasRef.current.width = 600;
           canvasRef.current.height = 600;
           
-          // Generate art using tokenId as seed (if minted) or FID (for preview)
-          // After mint, art will use tokenId to match the NFT
-          generateArt(canvasRef.current, { tokenId: artSeed });
+          // Generate art using FID if available (matches NFTViewClient.tsx), otherwise use tokenId
+          generateArt(canvasRef.current, { tokenId: seedToUse });
           
           // Update imageBase64 when canvas is ready
           // Use JPEG with quality 0.85 for smaller file size (PNG doesn't support quality parameter)
@@ -931,7 +934,7 @@ export default function MintPage() {
     });
 
     return () => cancelAnimationFrame(frameId);
-  }, [artSeed, canvasReady]);
+  }, [fid, artSeed, canvasReady]);
 
   // Check if canvas is mounted and reset when artSeed changes
   useEffect(() => {
@@ -975,9 +978,12 @@ export default function MintPage() {
   }, [artSeed]);
 
   // Generate art on userNFTCanvasRef when userNFT.tokenId is available
-  // Use artSeed (same as Canvas above) to ensure both Canvas show the same art
+  // Use FID if available (matches NFTViewClient.tsx), otherwise use tokenId
   useEffect(() => {
-    if (!artSeed || !userNFTCanvasRef.current) return;
+    // Priority: FID > tokenId (matches NFTViewClient.tsx: fid || tokenId)
+    const seedToUse = fid || artSeed;
+    
+    if (!seedToUse || !userNFTCanvasRef.current) return;
 
     const frameId = requestAnimationFrame(() => {
       if (userNFTCanvasRef.current) {
@@ -986,9 +992,8 @@ export default function MintPage() {
           userNFTCanvasRef.current.width = 600;
           userNFTCanvasRef.current.height = 600;
           
-          // Generate art using artSeed (same as Canvas above)
-          // This ensures both Canvas show identical art
-          generateArt(userNFTCanvasRef.current, { tokenId: artSeed });
+          // Generate art using FID if available (matches NFTViewClient.tsx), otherwise use tokenId
+          generateArt(userNFTCanvasRef.current, { tokenId: seedToUse });
         } catch (error) {
           console.error("Error generating NFT art on canvas:", error);
         }
@@ -996,7 +1001,7 @@ export default function MintPage() {
     });
 
     return () => cancelAnimationFrame(frameId);
-  }, [artSeed]);
+  }, [fid, artSeed]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-black relative">

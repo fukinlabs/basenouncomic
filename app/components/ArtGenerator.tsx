@@ -27,15 +27,16 @@ export default function ArtGenerator({
     if (!canvasRef.current) return;
 
     try {
-      // Use FID as seed if provided (matches contract generation), otherwise use tokenId
-      // This ensures consistent art generation across view page, gallery, and API
-      const seed = fid || tokenId;
+      // Smart contract uses tokenId = nextId++ as seed (not FID)
+      // Always use tokenId as seed to match the minted NFT art
+      // FID is only used for display purposes, not for art generation
+      const seed = tokenId;
       
       // Set canvas size before generating art
       canvasRef.current.width = width;
       canvasRef.current.height = height;
       
-      // Generate art on canvas
+      // Generate art on canvas using tokenId as seed
       generateArt(canvasRef.current, { tokenId: seed });
       
       // Convert to base64
