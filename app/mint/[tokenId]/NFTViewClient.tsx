@@ -31,6 +31,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
     followingCount?: number;
     castsCount?: number;
   } | null>(null);
+  const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -106,6 +107,18 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         if (isMounted) {
           setMetadata(data);
           
+          // Fetch owner address from contract
+          fetch(`/api/nft-check?tokenId=${encodeURIComponent(tokenId)}`)
+            .then((checkRes) => checkRes.ok ? checkRes.json() : null)
+            .then((checkData) => {
+              if (isMounted && checkData?.owner) {
+                setOwnerAddress(checkData.owner);
+              }
+            })
+            .catch((err) => {
+              console.warn("Error fetching owner address:", err);
+            });
+          
           // If smart contract uses tokenID = FID, use tokenId as FID directly
           // Otherwise, extract FID from metadata attributes
           let extractedFid: string | undefined = undefined;
@@ -124,7 +137,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           if (extractedFid) {
             setFid(extractedFid);
             
-            // Fetch Farcaster user data
+            // Fetch Farcaster user data (for avatar and name)
             fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
               .then((userRes) => userRes.ok ? userRes.json() : null)
               .then((userData) => {
@@ -269,39 +282,30 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               </div>
             </div>
             
-            {/* Farcaster User Info */}
-            {farcasterUser && (
+            {/* Creator/Owner Info - Avatar, Name, and Address */}
+            {(farcasterUser || ownerAddress) && (
               <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-3 mb-2">
-                  {farcasterUser.avatarUrl && (
+                <div className="flex items-center gap-3">
+                  {farcasterUser?.avatarUrl && (
                     <Image 
                       src={farcasterUser.avatarUrl} 
-                      alt={farcasterUser.displayName || farcasterUser.username || "User"}
-                      width={48}
-                      height={48}
-                      className="w-12 h-12 rounded-full"
+                      alt={farcasterUser.displayName || farcasterUser.username || "Creator"}
+                      width={64}
+                      height={64}
+                      className="w-16 h-16 rounded-full border-2 border-purple-300"
                       unoptimized
                     />
                   )}
-                  <div>
-                    <h3 className="text-lg font-semibold text-purple-900">
-                      {farcasterUser.displayName || farcasterUser.username || `FID: ${fid}`}
-                    </h3>
-                    {farcasterUser.username && (
-                      <p className="text-sm text-purple-600">@{farcasterUser.username}</p>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-purple-900">
+                      {farcasterUser?.displayName || farcasterUser?.username || `FID: ${fid}` || "Unknown"}
+                    </h4>
+                    {ownerAddress && (
+                      <p className="text-sm font-mono text-purple-700 mt-1">
+                        {ownerAddress.slice(0, 6)}...{ownerAddress.slice(-4)}
+                      </p>
                     )}
                   </div>
-                </div>
-                {farcasterUser.bio && (
-                  <p className="text-sm text-purple-800 mt-2">{farcasterUser.bio}</p>
-                )}
-                <div className="flex gap-4 mt-2 text-xs text-purple-600">
-                  {farcasterUser.followersCount !== undefined && (
-                    <span>👥 {farcasterUser.followersCount.toLocaleString()} followers</span>
-                  )}
-                  {farcasterUser.castsCount !== undefined && (
-                    <span>📝 {farcasterUser.castsCount.toLocaleString()} casts</span>
-                  )}
                 </div>
               </div>
             )}
