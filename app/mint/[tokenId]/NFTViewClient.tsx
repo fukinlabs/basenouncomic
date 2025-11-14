@@ -408,9 +408,9 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           <div className="flex flex-col space_b sm:flex-row gap-3 justify-center"> 
             <Link
               href="/gallery"
-              className="inline-block px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-center touch-manipulation min-h-[44px] flex items-center justify-center"
+              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation min-h-[44px] flex items-center justify-center"
             >
-              🖼️ View Gallery
+              View Gallery
             </Link>
           </div>
         </div>
