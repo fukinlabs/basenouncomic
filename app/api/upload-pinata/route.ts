@@ -158,16 +158,19 @@ export async function POST(request: NextRequest) {
     // Create metadata JSON for NFT (ERC-721 standard)
     // Use IPFS protocol URL for image field to ensure NFTScan and other explorers can access it
     // NFTScan requires proper ERC-721 metadata format with IPFS protocol URLs
+    // Note: tokenId should be provided from frontend (predicted from nextId()), if not available use "unknown"
+    // Do NOT use fid as fallback for tokenId - they are different values
     const nftMetadata = {
-      name: `Base Abstract #${tokenId || fid}`,
+      name: `Base Abstract #${tokenId || "unknown"}`,
       description: `Generative art NFT for Farcaster FID ${fid}`,
       image: ipfsImageUrl, // Use ipfs:// protocol for NFTScan compatibility
       // Priority: NEXT_PUBLIC_ROOT_URL > NEXT_PUBLIC_URL > VERCEL_URL > localhost
       // Set NEXT_PUBLIC_ROOT_URL in Vercel Dashboard → Settings → Environment Variables
+      // Use tokenId if available (from nextId() prediction), otherwise use fid as fallback for URL only
       external_url: `${process.env.NEXT_PUBLIC_ROOT_URL || process.env.NEXT_PUBLIC_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")}/mint/${tokenId || fid}`,
       attributes: [
         { trait_type: "FID", value: String(fid || "unknown") },
-        { trait_type: "Token ID", value: String(tokenId || "unknown") },
+        { trait_type: "Token ID", value: String(tokenId || "unknown") }, // Use tokenId only, do NOT use fid as fallback
       ],
     };
 

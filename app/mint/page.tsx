@@ -767,6 +767,7 @@ export default function MintPage() {
       }
       
       // Step 1: Upload image to Pinata IPFS
+      // Use predictedTokenId (from nextId()) for metadata, fallback to fid if not available
       console.log("Uploading image to Pinata IPFS...");
       const uploadResponse = await fetch("/api/upload-pinata", {
         method: "POST",
@@ -775,7 +776,7 @@ export default function MintPage() {
         },
         body: JSON.stringify({
           imageBase64,
-          tokenId: fid, // Use FID as tokenId for now
+          tokenId: predictedTokenId || null, // Use predicted tokenId (from nextId()), null if not available
           fid,
         }),
       });
@@ -1111,7 +1112,7 @@ export default function MintPage() {
             </div>
           </div>
         ) : mintedTokenId ? (
-          <div className="text-center p-8 bg-green-50 rounded-full shadow-lg">
+          <div className="text-center p-8 bg-green-50  shadow-lg">
             <div className="mb-4">
               <div className="text-6xl mb-4">✅</div>
               <h2 className="text-2xl font-bold mb-2">NFT Minted Successfully!</h2>
