@@ -1115,6 +1115,18 @@ export default function MintPage() {
           <div className="text-center p-8 bg-green-50  shadow-lg">
             <div className="mb-4">
               <div className="text-6xl mb-4">✅</div>
+              {/* Show the NFT that user just minted (canvas NFT preview) */}
+              <div className="flex justify-center mb-6">
+                <div className="w-full max-w-xs  overflow-hidden  shadow-md border border-green-100 py-4 px-2 flex flex-col items-center">
+                  <canvas
+                    ref={userNFTCanvasRef}
+                    width={200}
+                    height={200}
+                    className="w-full h-auto object-contain rounded mb-2"
+                    style={{ imageRendering: 'auto', maxWidth: '200px', maxHeight: '200px', background: '#f3f4f6' }}
+                  />
+                 </div>
+              </div>
               <h2 className="text-2xl font-bold mb-2">NFT Minted Successfully!</h2>
               <div className="mb-4 p-4 bg-white rounded-lg border border-green-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
@@ -1184,17 +1196,13 @@ export default function MintPage() {
                 </h3>
                 <div className="flex flex-col items-center space-y-3">
                   {userNFT.tokenId ? (
-                    <div className="w-full max-w-xs relative">
-                      <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                         <canvas
                           ref={userNFTCanvasRef}
                           width={600}
                           height={600}
                           className="w-full h-full object-contain"
                           style={{ imageRendering: 'auto' }}
-                        />
-                      </div>
-                    </div>
+                        /> 
                   ) : null}
                   {userNFT.tokenId && (
                     <>

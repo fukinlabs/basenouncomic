@@ -214,21 +214,38 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                 <p className="text-gray-500">Loading NFT...</p>
               </div>
             ) : error && error.includes("not been minted") ? (
-              // Show error but still allow art generation if tokenId = FID
-              <div className="w-full max-w-md relative">
-                <div className="mb-4 p-4 bg-red-50 rounded-lg border-2 border-red-200">
-                  <div className="text-center">
-                    <p className="text-2xl mb-2">❌</p>
-                    <p className="text-lg font-semibold text-red-800 mb-1">NFT Not Found</p>
-                    <p className="text-sm text-red-600">{error}</p>
+              // Show 404 error page with image when NFT not minted
+              <div className="w-full max-w-2xl mx-auto">
+                <div className="text-center">
+                  <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">ERROR 404</h2>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">404</p>
+                  
+                  <div className="mb-6">
+                    <Image
+                      src="/error404.jpg"
+                      alt="404 Error - NFT Not Found"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto rounded-lg shadow-lg mx-auto"
+                      unoptimized
+                    />
                   </div>
-                </div>
-                {/* Still show art generation using tokenId as FID (for contracts where tokenId = FID) */}
-                <div className="w-full max-w-md relative mt-4">
-                  <ArtGenerator tokenId={fid || tokenId} fid={fid || tokenId} width={600} height={600} />
-                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                    ⚠️ NFT metadata not found, but showing art based on FID (assuming tokenId = FID)
+                  
+                  <div className="mb-6">
+                    <p className="text-lg text-gray-700 mb-2">
+                      This NFT has not been minted yet.
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Token ID: <span className="font-mono font-semibold">{tokenId}</span>
+                    </p>
                   </div>
+                  
+                  <Link
+                    href="/mint"
+                    className="inline-block px-6 py-3 bg-action-primary text-white rounded-full hover:opacity-90 transition-opacity font-semibold shadow-lg hover:shadow-xl"
+                  >
+                    Go to Mint Page →
+                  </Link>
                 </div>
               </div>
             ) : (

@@ -41,4 +41,7 @@ a {
   text-decoration: none;
 }
 .nf_m{margin-top: 15px;;}
+.bg-action-primary {
+  background-color: #7959ff !important;
+}
 
