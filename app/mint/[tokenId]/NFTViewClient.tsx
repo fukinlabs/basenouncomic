@@ -197,6 +197,33 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
     window.open(twitterUrl, '_blank', 'width=550,height=420');
   };
 
+  // Show 404 page if NFT not minted
+  if (!isLoading && error && error.includes("not been minted")) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-gray-50 to-white">
+        <div className="w-full max-w-2xl text-center">
+          <div className="mb-6">
+            <Image
+              src="/error404.jpg"
+              alt="404 Error - NFT Not Found"
+              width={600}
+              height={400}
+              className="w-full h-auto rounded-lg shadow-lg mx-auto"
+              unoptimized
+            />
+          </div>
+          
+          <Link
+            href="/mint"
+            className="inline-block px-6 py-3 bg-action-primary text-white rounded-full hover:opacity-90 transition-opacity font-semibold shadow-lg hover:shadow-xl"
+          >
+            Go to Mint Page →
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-gray-50 to-white">
       <div className="w-full max-w-3xl text-center">
@@ -213,57 +240,14 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
                 <p className="text-gray-500">Loading NFT...</p>
               </div>
-            ) : error && error.includes("not been minted") ? (
-              // Show 404 error page with image when NFT not minted
-              <div className="w-full max-w-2xl mx-auto">
-                <div className="text-center">
-                  <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">ERROR 404</h2>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">404</p>
-                  
-                  <div className="mb-6">
-                    <Image
-                      src="/error404.jpg"
-                      alt="404 Error - NFT Not Found"
-                      width={600}
-                      height={400}
-                      className="w-full h-auto rounded-lg shadow-lg mx-auto"
-                      unoptimized
-                    />
-                  </div>
-                  
-                  <div className="mb-6">
-                    <p className="text-lg text-gray-700 mb-2">
-                      This NFT has not been minted yet.
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Token ID: <span className="font-mono font-semibold">{tokenId}</span>
-                    </p>
-                  </div>
-                  
-                  <Link
-                    href="/mint"
-                    className="inline-block px-6 py-3 bg-action-primary text-white rounded-full hover:opacity-90 transition-opacity font-semibold shadow-lg hover:shadow-xl"
-                  >
-                    Go to Mint Page →
-                  </Link>
-                </div>
-              </div>
             ) : (
               <div className="w-full max-w-md relative">
-                {isLoading ? (
-                  <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-500">Loading art...</p>
+                {/* Use FID if available (for contracts where tokenId = FID), otherwise use tokenId */}
+                <ArtGenerator tokenId={fid || tokenId} fid={fid || tokenId} width={600} height={600} />
+                {!fid && metadata && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                    ⚠️ Warning: FID not found in metadata, using Token ID as seed. Art may not match minted version.
                   </div>
-                ) : (
-                  <>
-                    {/* Use FID if available (for contracts where tokenId = FID), otherwise use tokenId */}
-                    <ArtGenerator tokenId={fid || tokenId} fid={fid || tokenId} width={600} height={600} />
-                    {!fid && metadata && (
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                        ⚠️ Warning: FID not found in metadata, using Token ID as seed. Art may not match minted version.
-                      </div>
-                    )}
-                  </>
                 )}
               </div>
             )}
@@ -369,32 +353,35 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         </div>
 
         <div className="space-y-4">
-          {/* Share Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {/* Share Buttons - Icons in a row */}
+          <div className="flex flex-row gap-3 justify-center items-center">
             <button
               onClick={handleShareFarcaster}
               disabled={isSharing}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="w-12 h-12 flex items-center justify-center bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl"
+              title="Share on Farcaster"
             >
-              {isSharing ? "Sharing..." : "📱 Share on Farcaster"}
+              {isSharing ? "⏳" : "📱"}
             </button>
             
             <button
               onClick={handleShareTwitter}
-              className="px-6 py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="w-12 h-12 flex items-center justify-center bg-blue-400 text-white rounded-full hover:bg-blue-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl"
+              title="Share on Twitter/X"
             >
-              🐦 Share on Twitter/X
+              🐦
             </button>
             
             <button
               onClick={handleCopyLink}
-              className={`px-6 py-3 rounded-lg transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
+              className={`w-12 h-12 flex items-center justify-center rounded-full transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl ${
                 copySuccess
                   ? "bg-green-600 text-white"
                   : "bg-gray-600 text-white hover:bg-gray-700"
               }`}
+              title={copySuccess ? "Copied!" : "Copy Link"}
             >
-              {copySuccess ? "✓ Copied!" : "📋 Copy Link"}
+              {copySuccess ? "✓" : "📋"}
             </button>
           </div>
 
