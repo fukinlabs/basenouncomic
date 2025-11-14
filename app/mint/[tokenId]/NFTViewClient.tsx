@@ -239,8 +239,8 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center pt-20 pb-8 px-4 sm:pt-8 sm:pb-8 sm:px-8 bg-gradient-to-b from-gray-50 to-white">
-     <div className="w-full vp_space max-w-3xl text-center"> 
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 text-gray-900">
+     <div className="w-fullmax-w-3xl text-center"> 
+        <h1 className="text-2xl  vp_space sm:text-3xl md:text-4xl font-bold mb-2 text-gray-900">
           {metadata?.name || `NFT #${tokenId}`}
         </h1>
         <p className="text-gray-600 mb-4 sm:mb-6 md:mb-8 text-sm sm:text-base">
@@ -383,7 +383,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           <div className="flex flex-col sm:flex-row gap-3 justify-center"> 
             <Link
               href="/gallery"
-              className="inline-block px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-center touch-manipulation min-h-[44px] flex items-center justify-center"
+              className="inline-block px-6 pt-3 py-3 bg-purple-200 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-center touch-manipulation min-h-[44px] flex items-center justify-center"
             >
               🖼️ View Gallery
             </Link>
