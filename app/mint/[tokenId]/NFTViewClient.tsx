@@ -297,24 +297,10 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             )}
           </div>
           <div className="text-left">
-            {/* Creator/Owner Info - Avatar, Name, FID, and Address */}
+            {/* Creator/Owner Info - Name, FID, and Address */}
             {(farcasterUser || fid || ownerAddress) && (
               <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
                 <div className="flex items-center gap-3">
-                  {farcasterUser?.avatarUrl ? (
-                    <Image 
-                      src={farcasterUser.avatarUrl} 
-                      alt={farcasterUser.displayName || farcasterUser.username || `FID: ${fid}`}
-                      width={64}
-                      height={64}
-                      className="w-16 h-16 rounded-full border-2 border-purple-300"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full border-2 border-purple-300 bg-purple-200 flex items-center justify-center flex-shrink-0">
-                      <span className="text-purple-600 text-2xl">👤</span>
-                    </div>
-                  )}
                   <div className="flex-1 min-w-0">
                     <h4 className="text-lg font-semibold text-purple-900 break-words">
                       {farcasterUser?.displayName || farcasterUser?.username || (fid ? `FID: ${fid}` : "Unknown")}
@@ -335,7 +321,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             {metadata?.attributes && metadata.attributes.length > 0 && (
               <div className="mb-4">
                 <h3 className="text-lg font-semibold mb-3">Attributes</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {metadata.attributes.map((attr, idx) => (
                     <div 
                       key={idx}
@@ -384,10 +370,17 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             <button
               onClick={handleShareFarcaster}
               disabled={isSharing}
-              className="w-12 h-12 flex items-center justify-center bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl touch-manipulation"
+              className="w-12 h-12 flex items-center justify-center bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation"
               title="Share on Farcaster"
             >
-              {isSharing ? "⏳" : "📱"}
+              {isSharing ? (
+                <span className="text-xl">⏳</span>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 1080 1080" fill="none" className="w-5 h-5">
+                  <rect width="1080" height="1080" rx="120" fill="white"></rect>
+                  <path d="M847.387 270V343.023H774.425V415.985H796.779V416.01H847.387V810.795H725.173L725.099 810.434L662.737 515.101C656.791 486.949 641.232 461.477 618.927 443.362C596.623 425.248 568.527 415.275 539.818 415.275H539.575C510.866 415.275 482.77 425.248 460.466 443.362C438.161 461.477 422.602 486.958 416.657 515.101L354.223 810.795H232V416.001H282.608V415.985H304.959V343.023H232V270H847.387Z" fill="#6A3CFF"></path>
+                </svg>
+              )}
             </button>
             
             <button
