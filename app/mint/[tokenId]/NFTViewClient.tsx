@@ -6,6 +6,7 @@ import Image from "next/image";
 import ArtGenerator from "../../components/ArtGenerator";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { minikitConfig } from "../../../minikit.config";
+import "../../globals.css";
 
 interface NFTMetadata {
   name?: string;
