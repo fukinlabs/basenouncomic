@@ -26,6 +26,16 @@ body {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+
+  --color-wrap-100: oklch(95% 0.05 284.1);
+  --color-wrap-200: oklch(85% 0.10 284.1);
+  --color-wrap-300: oklch(75% 0.15 284.1);
+  --color-wrap-400: oklch(65% 0.20 284.1);
+  --color-wrap-500: oklch(54% 0.26 284.1);
+  --color-wrap-600: oklch(45% 0.23 284.1);
+  --color-wrap-700: oklch(38% 0.20 284.1);
+  --color-wrap-800: oklch(30% 0.15 284.1);
+  --color-wrap-900: oklch(20% 0.10 284.1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,3 +56,9 @@ a {
 } 
 .vp_space{margin-top: 2.5em;}
 .space_g{padding: 1em;}
+
+
+        --color-blue-400: oklch(70.7% .165 254.624);
+        --color-blue-500: oklch(62.3% .214 259.815);
+        --color-blue-600: oklch(54.6% .245 262.881);
+        --color-blue-700: oklch(48.8% .243 264.376);

@@ -241,7 +241,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center pt-20 pb-8 px-4 sm:pt-8 sm:pb-8 sm:px-8 bg-gradient-to-b from-gray-50 to-white">
      <div className="w-full max-w-3xl text-center"> 
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 text-gray-900">
+        <h1 className="text-2xl space_g sm:text-3xl md:text-4xl font-bold mb-2 text-gray-900">
           {metadata?.name || `NFT #${tokenId}`}
         </h1>
         <p className="text-gray-600 mb-4 sm:mb-6 md:mb-8 text-sm sm:text-base">
@@ -370,19 +370,19 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             <button
               onClick={handleShareFarcaster}
               disabled={isSharing}
-              className="w-12 h-12 flex items-center justify-center bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation"
+              className="w-12 h-12 flex items-center justify-center bg-wrap-600 text-white rounded-full hover:bg-wrap-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation"
               title="Share on Farcaster"
             >
               {isSharing ? (
                 <span className="text-xl">⏳</span>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1080 1080" fill="none"><rect width="1080" height="1080" rx="120" fill="#6A3CFF"></rect><path d="M847.387 270V343.023H774.425V415.985H796.779V416.01H847.387V810.795H725.173L725.099 810.434L662.737 515.101C656.791 486.949 641.232 461.477 618.927 443.362C596.623 425.248 568.527 415.275 539.818 415.275H539.575C510.866 415.275 482.77 425.248 460.466 443.362C438.161 461.477 422.602 486.958 416.657 515.101L354.223 810.795H232V416.001H282.608V415.985H304.959V343.023H232V270H847.387Z" fill="white"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 1080 1080" fill="none"><rect width="1080" height="1080" rx="120" ></rect><path d="M847.387 270V343.023H774.425V415.985H796.779V416.01H847.387V810.795H725.173L725.099 810.434L662.737 515.101C656.791 486.949 641.232 461.477 618.927 443.362C596.623 425.248 568.527 415.275 539.818 415.275H539.575C510.866 415.275 482.77 425.248 460.466 443.362C438.161 461.477 422.602 486.958 416.657 515.101L354.223 810.795H232V416.001H282.608V415.985H304.959V343.023H232V270H847.387Z" fill="white"></path></svg>
               )}
             </button>
             
             <button
               onClick={handleShareTwitter}
-              className="w-12 h-12 flex items-center justify-center bg-blue-400 text-white rounded-full hover:bg-blue-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl touch-manipulation"
+              className="w-12 h-12 flex items-center justify-center bg-black-400 text-white rounded-full hover:bg-black-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl touch-manipulation"
               title="Share on Twitter/X"
             >
               🐦
