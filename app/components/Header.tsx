@@ -247,15 +247,15 @@ export default function Header() {
                 onClick={() => setShowUserMenu(false)}
               />
               <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
-                <div className="p-2">
+                <div className="p-1">
                   <button
                     onClick={handleSignOut}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-2"
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 bg-pink-50 hover:bg-red-50 rounded-md transition-colors flex items-center gap-2.5"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
-                    Sign Out
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </div>
