@@ -368,9 +368,7 @@ export function generateArt(canvas: HTMLCanvasElement, config: ArtConfig): void 
     canvas.width = width;
     canvas.height = height;
   }
-
-  const colors = ['#0000FF', '#FF0000', '#ff6392', '#FCBA3A', '#000000', '#f0f0f0'];
-  
+  const colors = ['#0000FF', '#0056B3','#003366', '#FFFFFF','#0066CC','#FF0000', '#ff6392', '#FCBA3A', '#000000', '#f0f0f0'];
   // Use tokenId as seed for deterministic generation
   // Each unique tokenId will generate unique art
   // If custom seed is provided, use it; otherwise use tokenId
