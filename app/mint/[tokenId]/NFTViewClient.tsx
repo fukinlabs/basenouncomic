@@ -301,7 +301,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             {(farcasterUser || fid || ownerAddress) && (
               <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 space_d min-w-0">
                     <h4 className="text-lg font-semibold text-purple-900 break-words">
                       {farcasterUser?.displayName || farcasterUser?.username || (fid ? `FID: ${fid}` : "Unknown")}
                     </h4>
@@ -319,7 +319,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             )}
             
             {metadata?.attributes && metadata.attributes.length > 0 && (
-              <div className="mb-4">
+              <div className="mb-4 space_d">
                 <h3 className="text-lg font-semibold mb-3">Attributes</h3>
                 <div className="flex flex-wrap gap-2">
                   {metadata.attributes.map((attr, idx) => (
@@ -346,13 +346,13 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             
             {/* Description Section */}
             {metadata?.description && (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="space_d mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
                 <p className="text-sm text-gray-600">{metadata.description}</p>
               </div>
             )}
             
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
+            <div className="space_d bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
               <p className="text-sm text-blue-800 font-medium mb-2">
                 💡 Share this NFT
               </p>
@@ -366,7 +366,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
 
         <div className="space-y-4 mt-6 mb-8">
           {/* Share Buttons - Icons in a row */}
-          <div className="flex flex-row gap-3 justify-center items-center">
+          <div className="flex flex-row space_d gap-3 justify-center items-center">
             <button
               onClick={handleShareFarcaster}
               disabled={isSharing}
