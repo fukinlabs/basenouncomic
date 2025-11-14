@@ -55,10 +55,7 @@ a {
   background-color: #7959ff !important;
 } 
 .vp_space{margin-top: 2.5em;}
-.space_g{padding: 1em;}
+.space_g{padding-top: 1em;}
+.space_b{padding-bottom: 1em;}
 
-
-        --color-blue-400: oklch(70.7% .165 254.624);
-        --color-blue-500: oklch(62.3% .214 259.815);
-        --color-blue-600: oklch(54.6% .245 262.881);
-        --color-blue-700: oklch(48.8% .243 264.376);
+ 
