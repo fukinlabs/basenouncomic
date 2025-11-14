@@ -1146,7 +1146,12 @@ export default function MintPage() {
                 Transaction: {hash?.slice(0, 10)}...{hash?.slice(-8)}
               </p>
             </div>
-         
+            <button
+              onClick={handleShare}
+             className="nf_m w-48 h-10 px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+            >
+              Share on Farcaster
+            </button>
             <div className="mt-4">
               <a
                 href={`/mint/${mintedTokenId}`}
@@ -1204,9 +1209,9 @@ export default function MintPage() {
                       <div className="text-center">
                         {/* ดึง name มาจาก metadata (เช่น pinata) */}
                         <p className="text-sm font-semibold text-gray-700">
-                          {userNFT.name 
+                        {userNFT.name 
                             ? userNFT.name + " (จาก metadata)"  // แสดงว่าดึงมาจาก metadata Pinata
-                            : `Farcaster Abtract #${userNFT.tokenId}`}
+                            : `Farcaster Abtract  #${userNFT.tokenId}`}
                         </p>
                         <p className="text-xs text-gray-500">Token ID: {userNFT.tokenId}</p>
                       </div>
@@ -1425,16 +1430,6 @@ export default function MintPage() {
             </div>
           </div>
         )}
-
-<button
-              onClick={handleShare}
-              className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-            >
-              Share on Farcaster
-            </button>
-
-
-
       </div>
     </main>
   );
