@@ -257,7 +257,37 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             ) : (
               <div className="w-full max-w-md relative">
                 {/* Use FID if available (for contracts where tokenId = FID), otherwise use tokenId */}
-                <ArtGenerator tokenId={fid || tokenId} fid={fid || tokenId} width={600} height={600} />
+                {(() => {
+                  const seedToUse = fid || tokenId;
+                  console.log("[NFTViewClient] Rendering ArtGenerator - tokenId:", tokenId, "fid:", fid, "seedToUse:", seedToUse);
+                  
+                  if (!tokenId) {
+                    console.warn("[NFTViewClient] tokenId is missing!");
+                    return (
+                      <div className="w-full h-96 bg-red-100 rounded-lg flex items-center justify-center">
+                        <p className="text-red-600">Error: Token ID is missing</p>
+                      </div>
+                    );
+                  }
+                  
+                  if (!seedToUse) {
+                    console.warn("[NFTViewClient] Both tokenId and fid are missing!");
+                    return (
+                      <div className="w-full h-96 bg-yellow-100 rounded-lg flex items-center justify-center">
+                        <p className="text-yellow-600">Loading art...</p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <ArtGenerator 
+                      tokenId={seedToUse} 
+                      fid={fid || undefined} 
+                      width={600} 
+                      height={600} 
+                    />
+                  );
+                })()}
                 {!fid && metadata && (
                   <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                     ⚠️ Warning: FID not found in metadata, using Token ID as seed. Art may not match minted version.

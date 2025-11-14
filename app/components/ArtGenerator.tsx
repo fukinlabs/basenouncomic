@@ -24,12 +24,22 @@ export default function ArtGenerator({
   const [base64, setBase64] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      console.warn("[ArtGenerator] Canvas ref is null");
+      return;
+    }
+
+    if (!tokenId) {
+      console.warn("[ArtGenerator] tokenId is missing:", tokenId);
+      return;
+    }
 
     try {
       // Use FID if available (matches NFTViewClient.tsx: fid || tokenId), otherwise use tokenId
       // This ensures consistent art generation across view page, gallery, and API
       const seed = fid || tokenId;
+      
+      console.log("[ArtGenerator] Generating art with seed:", seed, "tokenId:", tokenId, "fid:", fid);
       
       // Set canvas size before generating art
       canvasRef.current.width = width;
@@ -42,11 +52,13 @@ export default function ArtGenerator({
       const base64String = canvasRef.current.toDataURL("image/png");
       setBase64(base64String);
       
+      console.log("[ArtGenerator] Art generated successfully, base64 length:", base64String.length);
+      
       if (onBase64Generated) {
         onBase64Generated(base64String);
       }
     } catch (error) {
-      console.error("Error generating art:", error);
+      console.error("[ArtGenerator] Error generating art:", error);
     }
   }, [tokenId, fid, width, height, onBase64Generated]);
 
