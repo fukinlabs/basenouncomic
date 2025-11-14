@@ -1207,8 +1207,11 @@ export default function MintPage() {
                   {userNFT.tokenId && (
                     <>
                       <div className="text-center">
+                        {/* ดึง name มาจาก metadata (เช่น pinata) */}
                         <p className="text-sm font-semibold text-gray-700">
-                          {userNFT.name || `NFT #${userNFT.tokenId}`}
+                          {userNFT.name 
+                            ? userNFT.name + " (จาก metadata)"  // แสดงว่าดึงมาจาก metadata Pinata
+                            : `NFT #${userNFT.tokenId}`}
                         </p>
                         <p className="text-xs text-gray-500">Token ID: {userNFT.tokenId}</p>
                       </div>

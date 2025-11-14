@@ -266,43 +266,34 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             )}
           </div>
           <div className="text-left">
-            {/* Token ID and FID Info */}
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-blue-900 mb-1">Token ID</h3>
-                  <p className="text-lg font-mono text-blue-700">{tokenId}</p>
-                </div>
-                {fid && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-blue-900 mb-1">Farcaster FID</h3>
-                    <p className="text-lg font-mono text-blue-700">{fid}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Creator/Owner Info - Avatar, Name, and Address */}
-            {(farcasterUser || ownerAddress) && (
+            {/* Creator/Owner Info - Avatar, Name, FID, and Address */}
+            {(farcasterUser || fid || ownerAddress) && (
               <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
                 <div className="flex items-center gap-3">
-                  {farcasterUser?.avatarUrl && (
+                  {farcasterUser?.avatarUrl ? (
                     <Image 
                       src={farcasterUser.avatarUrl} 
-                      alt={farcasterUser.displayName || farcasterUser.username || "Creator"}
+                      alt={farcasterUser.displayName || farcasterUser.username || `FID: ${fid}`}
                       width={64}
                       height={64}
                       className="w-16 h-16 rounded-full border-2 border-purple-300"
                       unoptimized
                     />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full border-2 border-purple-300 bg-purple-200 flex items-center justify-center flex-shrink-0">
+                      <span className="text-purple-600 text-2xl">👤</span>
+                    </div>
                   )}
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-purple-900">
-                      {farcasterUser?.displayName || farcasterUser?.username || `FID: ${fid}` || "Unknown"}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-lg font-semibold text-purple-900 break-words">
+                      {farcasterUser?.displayName || farcasterUser?.username || (fid ? `FID: ${fid}` : "Unknown")}
                     </h4>
+                    {fid && (
+                      <p className="text-sm text-purple-600 mt-1">FID: {fid}</p>
+                    )}
                     {ownerAddress && (
-                      <p className="text-sm font-mono text-purple-700 mt-1">
-                        {ownerAddress.slice(0, 6)}...{ownerAddress.slice(-4)}
+                      <p className="text-sm font-mono text-purple-700 mt-1 break-all">
+                        {ownerAddress}
                       </p>
                     )}
                   </div>
