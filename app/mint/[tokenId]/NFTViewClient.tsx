@@ -239,7 +239,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center pt-20 pb-8 px-4 sm:pt-8 sm:pb-8 sm:px-8 bg-gradient-to-b from-gray-50 to-white">
-      <div className="w-full max-w-3xl text-center">
+     <div className="w-full vp_space max-w-3xl text-center"> 
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 text-gray-900">
           {metadata?.name || `NFT #${tokenId}`}
         </h1>

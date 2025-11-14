@@ -1146,12 +1146,7 @@ export default function MintPage() {
                 Transaction: {hash?.slice(0, 10)}...{hash?.slice(-8)}
               </p>
             </div>
-            <button
-              onClick={handleShare}
-              className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-            >
-              Share on Farcaster
-            </button>
+         
             <div className="mt-4">
               <a
                 href={`/mint/${mintedTokenId}`}
@@ -1211,7 +1206,7 @@ export default function MintPage() {
                         <p className="text-sm font-semibold text-gray-700">
                           {userNFT.name 
                             ? userNFT.name + " (จาก metadata)"  // แสดงว่าดึงมาจาก metadata Pinata
-                            : `NFT #${userNFT.tokenId}`}
+                            : `Farcaster Abtract #${userNFT.tokenId}`}
                         </p>
                         <p className="text-xs text-gray-500">Token ID: {userNFT.tokenId}</p>
                       </div>
@@ -1237,94 +1232,84 @@ export default function MintPage() {
               </div>
             )}
 
-            {/* Already Minted Warning */}
-            {isAlreadyMinted === true && (
-              <div className="w-full space-y-3">
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-full">
-                  <p className="text-sm text-yellow-700 text-center">
-                    ⚠️ This FID has already been minted. Each FID can only mint once.
+            {/* Error handling for tokenId fetch when NFT is already minted */}
+            {isAlreadyMinted === true && isLoadingNFT && (
+              <div className="w-full p-4 bg-gray-50 rounded-full">
+                <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
+              </div>
+            )}
+            
+            {isAlreadyMinted === true && tokenIdError && (
+              <div className="w-full space-y-2">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-full">
+                  <p className="text-sm text-red-700 text-center">
+                    ⚠️ {tokenIdError}
+                  </p>
+                  <p className="text-xs text-red-600 text-center mt-1">
+                    TokenId is required to view your NFT. This value comes from the smart contract Mint event.
                   </p>
                 </div>
-                {/* View NFT Button - Use tokenId from smart contract (_safeMint, _setTokenURI, emit Mint) */}
-                {isLoadingNFT ? (
-                  // Loading: Fetching tokenId from contract (Mint event)
-                  <div className="block w-full px-6 py-3 bg-gray-400 text-white rounded-full text-center font-semibold cursor-not-allowed">
-                    Loading tokenId from contract...
-                  </div>
-                ) : tokenIdError ? (
-                  // Error: Show error message and retry button
-                  <div className="w-full space-y-2">
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-full">
-                      <p className="text-sm text-red-700 text-center">
-                        ⚠️ {tokenIdError}
-                      </p>
-                      <p className="text-xs text-red-600 text-center mt-1">
-                        TokenId is required to view your NFT. This value comes from the smart contract Mint event.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setTokenIdError(null);
-                        setIsLoadingNFT(true);
-                        // Reset hasFetched flag to allow retry
-                        const fetchTokenId = async () => {
-                          try {
-                            const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid || "")}`);
-                            if (response.ok) {
-                              const data = await response.json();
-                              // ✅ Accept tokenId = "0" (first NFT minted)
-                              if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null" && /^\d+$/.test(String(data.tokenId))) {
-                                // Verify from metadata
-                                try {
-                                  const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(String(data.tokenId))}`);
-                                  if (metadataResponse.ok) {
-                                    const metadata = await metadataResponse.json();
-                                    let verifiedTokenId = String(data.tokenId);
-                                    if (metadata.name && typeof metadata.name === 'string') {
-                                      const nameMatch = metadata.name.match(/#(\d+)$/);
-                                      if (nameMatch && nameMatch[1]) {
-                                        verifiedTokenId = nameMatch[1];
-                                      }
-                                    }
-                                    setUserNFT({ 
-                                      tokenId: verifiedTokenId,
-                                      image: metadata.image,
-                                      name: metadata.name,
-                                    });
-                                    setTokenIdError(null);
-                                  } else {
-                                    // Use tokenId from Mint event if metadata fails
-                                    setUserNFT({ tokenId: String(data.tokenId) });
-                                    setTokenIdError(null);
+                <button
+                  onClick={() => {
+                    setTokenIdError(null);
+                    setIsLoadingNFT(true);
+                    // Reset hasFetched flag to allow retry
+                    const fetchTokenId = async () => {
+                      try {
+                        const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid || "")}`);
+                        if (response.ok) {
+                          const data = await response.json();
+                          // ✅ Accept tokenId = "0" (first NFT minted)
+                          if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null" && /^\d+$/.test(String(data.tokenId))) {
+                            // Verify from metadata
+                            try {
+                              const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(String(data.tokenId))}`);
+                              if (metadataResponse.ok) {
+                                const metadata = await metadataResponse.json();
+                                let verifiedTokenId = String(data.tokenId);
+                                if (metadata.name && typeof metadata.name === 'string') {
+                                  const nameMatch = metadata.name.match(/#(\d+)$/);
+                                  if (nameMatch && nameMatch[1]) {
+                                    verifiedTokenId = nameMatch[1];
                                   }
-                                } catch (metadataError) {
-                                  // Use tokenId from Mint event if metadata verification fails
-                                  console.warn("Metadata verification failed, using Mint event tokenId:", metadataError);
-                                  setUserNFT({ tokenId: String(data.tokenId) });
-                                  setTokenIdError(null);
                                 }
+                                setUserNFT({ 
+                                  tokenId: verifiedTokenId,
+                                  image: metadata.image,
+                                  name: metadata.name,
+                                });
+                                setTokenIdError(null);
                               } else {
-                                setTokenIdError("TokenId not found in response. Please try again.");
+                                // Use tokenId from Mint event if metadata fails
+                                setUserNFT({ tokenId: String(data.tokenId) });
+                                setTokenIdError(null);
                               }
-                            } else {
-                              const errorData = await response.json().catch(() => ({}));
-                              setTokenIdError(errorData.error || "Failed to fetch tokenId. Please try again.");
+                            } catch (metadataError) {
+                              // Use tokenId from Mint event if metadata verification fails
+                              console.warn("Metadata verification failed, using Mint event tokenId:", metadataError);
+                              setUserNFT({ tokenId: String(data.tokenId) });
+                              setTokenIdError(null);
                             }
-                          } catch (error) {
-                            console.error("Retry error:", error);
-                            setTokenIdError(error instanceof Error ? error.message : "Failed to fetch tokenId. Please try again.");
-                          } finally {
-                            setIsLoadingNFT(false);
+                          } else {
+                            setTokenIdError("TokenId not found in response. Please try again.");
                           }
-                        };
-                        fetchTokenId();
-                      }}
-                      className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
-                    >
-                      🔄 Retry Fetching TokenId
-                    </button>
-                  </div>
-                ) : null}
+                        } else {
+                          const errorData = await response.json().catch(() => ({}));
+                          setTokenIdError(errorData.error || "Failed to fetch tokenId. Please try again.");
+                        }
+                      } catch (error) {
+                        console.error("Retry error:", error);
+                        setTokenIdError(error instanceof Error ? error.message : "Failed to fetch tokenId. Please try again.");
+                      } finally {
+                        setIsLoadingNFT(false);
+                      }
+                    };
+                    fetchTokenId();
+                  }}
+                  className="block w-full px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-center font-semibold"
+                >
+                  🔄 Retry Fetching TokenId
+                </button>
               </div>
             )}
 
@@ -1440,6 +1425,16 @@ export default function MintPage() {
             </div>
           </div>
         )}
+
+<button
+              onClick={handleShare}
+              className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+            >
+              Share on Farcaster
+            </button>
+
+
+
       </div>
     </main>
   );
