@@ -162,7 +162,9 @@ export async function POST(request: NextRequest) {
       name: `Base Abstract #${tokenId || fid}`,
       description: `Generative art NFT for Farcaster FID ${fid}`,
       image: ipfsImageUrl, // Use ipfs:// protocol for NFTScan compatibility
-      external_url: `${process.env.NEXT_PUBLIC_URL || process.env.NEXT_PUBLIC_ROOT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")}/mint/${tokenId || fid}`,
+      // Priority: NEXT_PUBLIC_ROOT_URL > NEXT_PUBLIC_URL > VERCEL_URL > localhost
+      // Set NEXT_PUBLIC_ROOT_URL in Vercel Dashboard → Settings → Environment Variables
+      external_url: `${process.env.NEXT_PUBLIC_ROOT_URL || process.env.NEXT_PUBLIC_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")}/mint/${tokenId || fid}`,
       attributes: [
         { trait_type: "FID", value: String(fid || "unknown") },
         { trait_type: "Token ID", value: String(tokenId || "unknown") },

@@ -605,14 +605,7 @@ export default function GalleryPage() {
                 </p>
               )}
             </div>
-          </div>
-          <Link
-            href="/mint"
-            prefetch={false}
-            className="px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
-          >
-            Mint NFT
-          </Link>
+          </div> 
         </div>
 
         {/* Search Bar */}

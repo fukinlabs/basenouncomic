@@ -741,6 +741,31 @@ export default function MintPage() {
 
     setIsMinting(true);
     try {
+      // Step 0: Read nextId from contract to predict tokenId (tokenId = nextId++)
+      // This allows us to use the correct tokenId in external_url
+      let predictedTokenId: string | null = null;
+      try {
+        const { createPublicClient, http, parseAbiItem } = await import("viem");
+        const { base } = await import("viem/chains");
+        
+        const publicClient = createPublicClient({
+          transport: http(),
+          chain: base,
+        });
+        
+        const nextId = await publicClient.readContract({
+          address: NFT_CONTRACT_ADDRESS,
+          abi: [parseAbiItem("function nextId() view returns (uint256)")],
+          functionName: "nextId",
+        });
+        
+        // tokenId = nextId++ means the next mint will get this nextId value
+        predictedTokenId = nextId.toString();
+        console.log("Predicted tokenId from nextId():", predictedTokenId);
+      } catch (error) {
+        console.warn("Could not read nextId from contract, will use fid as fallback:", error);
+      }
+      
       // Step 1: Upload image to Pinata IPFS
       console.log("Uploading image to Pinata IPFS...");
       const uploadResponse = await fetch("/api/upload-pinata", {
@@ -828,16 +853,24 @@ export default function MintPage() {
         console.log("Using compressed base64 (gas: ~400,000-500,000, still much lower than original)");
       }
 
-      // Step 3: Call mint(to, fid, imageBase64) directly (no signature)
+      // Step 3: Call mint(to, fid, imageBase64, externalUrl) directly (no signature)
+      // Build external_url for metadata using predicted tokenId (from nextId())
+      const rootUrl = process.env.NEXT_PUBLIC_ROOT_URL || 
+        process.env.NEXT_PUBLIC_URL || 
+        (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3000");
+      // Use predicted tokenId (from nextId()) for external_url
+      // tokenId = nextId++ means the next mint will get this nextId value
+      const externalUrl = `${rootUrl}/mint/${predictedTokenId || fid}`; // Use tokenId if available, fallback to fid
+      
       // Verify contract address before minting
       console.log("Minting to contract:", NFT_CONTRACT_ADDRESS);
-      console.log("Mint args:", { to: address, fid, imageDataLength: imageData.length });
+      console.log("Mint args:", { to: address, fid, imageDataLength: imageData.length, externalUrl });
       
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
         functionName: "mint",
-        args: [address, BigInt(fid), imageData],
+        args: [address, BigInt(fid), imageData, externalUrl],
       });
     } catch (error) {
       console.error("Mint error:", error);
