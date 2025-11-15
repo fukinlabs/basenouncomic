@@ -1219,9 +1219,9 @@ export default function MintPage() {
 
             {/* User's NFT Display */}
             {fid && !isLoadingNFT && userNFT && (
-              <div className="w-full bg-white  p-4 shadow-lg">
-                <h3 className="text-lg font-semibold mb-3 text-center text-gray-800">
-                  🎨 Your NFT Collection
+              <div className="w-full bg-white  p-4 ">
+                <h3 className="space_d text-lg font-semibold mb-3 text-center text-gray-800">
+                   Your NFT Collection
                 </h3>
                 <div className="flex flex-col items-center space-y-3">
                   {userNFT.tokenId ? (
@@ -1235,7 +1235,7 @@ export default function MintPage() {
                   ) : null}
                   {userNFT.tokenId && (
                     <>
-                      <div className="text-center">
+                      <div className="text-center space_d">
                         {/* ดึง name มาจาก metadata (เช่น pinata) */}
                         <p className="space_d text-sm font-semibold text-gray-700">
                         {userNFT.name 

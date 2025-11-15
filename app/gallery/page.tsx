@@ -303,7 +303,7 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
             ) : (
               <Link
                 href={`/mint/${String(nft.tokenId).trim()}`}
-                className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
+                className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-wrap-600 text-white rounded-lg hover:bg-wrap-700 transition-colors font-semibold text-sm sm:text-base"
               >
                 View Full Details →
               </Link>
