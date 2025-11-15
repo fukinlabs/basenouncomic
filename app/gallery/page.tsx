@@ -33,7 +33,6 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
     displayName?: string;
     avatarUrl?: string;
   } | null>(null);
-  const [nftExists, setNftExists] = useState<boolean | null>(null); // null = not checked yet
 
   // Fetch metadata if not already loaded
   useEffect(() => {
@@ -42,21 +41,18 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
       const tokenIdStr = String(nft.tokenId).trim();
       if (!/^\d+$/.test(tokenIdStr)) {
         console.error(`[Gallery] Invalid tokenId format: ${tokenIdStr}`);
-        setNftExists(false);
         return;
       }
       
       fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`)
         .then((res) => {
           if (res.ok) {
-            setNftExists(true);
             return res.json();
           } else if (res.status === 404) {
-            setNftExists(false);
-            console.warn(`[Gallery] NFT not found for tokenId: ${tokenIdStr}`);
+            console.warn(`[Gallery] Metadata not found for tokenId: ${tokenIdStr}, but NFT may still exist`);
             return null;
           } else {
-            setNftExists(null); // Unknown status
+            console.warn(`[Gallery] Error fetching metadata for tokenId: ${tokenIdStr}`, res.status);
             return null;
           }
         })
@@ -303,10 +299,6 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
             {!nft.tokenId || !/^\d+$/.test(String(nft.tokenId).trim()) ? (
               <div className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed text-sm sm:text-base">
                 Invalid Token ID
-              </div>
-            ) : nftExists === false ? (
-              <div className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-100 text-red-700 rounded-lg cursor-not-allowed text-sm sm:text-base border border-red-200">
-                NFT Not Found
               </div>
             ) : (
               <Link
