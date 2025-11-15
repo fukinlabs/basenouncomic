@@ -218,7 +218,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         <div className="w-full max-w-2xl text-center">
           <div className="mb-6">
             <Image
-              src="/error404.jpg"
+              src="/error404.png"
               alt="404 Error - NFT Not Found"
               width={600}
               height={400}

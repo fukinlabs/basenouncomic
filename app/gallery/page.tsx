@@ -278,10 +278,10 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           )}
 
           {/* View Details Button */}
-          <div className="mt-4">
+          <div className="mt-4 text-white ">
             <Link
               href={`/mint/${nft.tokenId}`}
-              className="inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center text-sm sm:text-base"
+              className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center text-sm sm:text-base"
             >
               View Full Details →
             </Link>
@@ -330,8 +330,26 @@ export default function GalleryPage() {
         console.log("[Gallery] Fetched NFT data:", { total: data.total, nftsCount: data.nfts?.length, nfts: data.nfts });
         
         if (isMounted) {
+          // Check if data.nfts exists and is an array
+          if (!data.nfts || !Array.isArray(data.nfts)) {
+            console.error("[Gallery] Invalid NFT data:", data);
+            setError("Invalid NFT data received from server");
+            setIsLoading(false);
+            return;
+          }
+
           setTotal(data.total || 0);
           setHasMore(data.hasMore || false);
+
+          // If no NFTs, set empty array and return early
+          if (data.nfts.length === 0) {
+            console.log("[Gallery] No NFTs found in response");
+            if (page === 1) {
+              setNfts([]);
+            }
+            setIsLoading(false);
+            return;
+          }
 
           // Fetch metadata for each NFT
           const nftsWithMetadata = await Promise.all(
@@ -345,10 +363,13 @@ export default function GalleryPage() {
                     image: metadata.image,
                     name: metadata.name,
                   };
+                } else {
+                  console.warn(`[Gallery] Metadata fetch failed for tokenId ${nft.tokenId}:`, metadataResponse.status);
                 }
               } catch (error) {
                 console.warn(`[Gallery] Failed to fetch metadata for tokenId ${nft.tokenId}:`, error);
               }
+              // Return NFT even if metadata fetch fails
               return nft;
             })
           );
@@ -590,9 +611,9 @@ export default function GalleryPage() {
     <main className="min-h-screen bg-black p-2 sm:p-4">
       <div className="max-w-6xl mx-auto w-full">
         {/* Header */}
-        <div className="pace_g mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+        <div className="space_g mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">🎨 NFT Gallery</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">NFT Gallery</h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <p className="text-sm sm:text-base text-gray-400">
                 {total > 0 ? (
@@ -693,97 +714,101 @@ export default function GalleryPage() {
                     </div>
                   </div>
                 <div className="text-left">
-                  <h2 className="text-lg sm:text-xl font-semibold mb-2">Token ID: {searchResult.tokenId}</h2>
-                  
-                  {/* Farcaster User Info */}
-                  {searchFarcasterUser && (
-                    <div className="mb-4 p-3 sm:p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                        {searchFarcasterUser.avatarUrl && (
-                          <Image 
-                            src={searchFarcasterUser.avatarUrl} 
-                            alt={searchFarcasterUser.displayName || searchFarcasterUser.username || "User"}
-                            width={48}
-                            height={48}
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full"
-                            unoptimized
-                          />
-                        )}
-                        <div>
-                          <h3 className="text-base sm:text-lg font-semibold text-purple-900">
-                            {searchFarcasterUser.displayName || searchFarcasterUser.username || `FID: ${displayFid}`}
-                          </h3>
-                          {searchFarcasterUser.username && (
-                            <p className="text-xs sm:text-sm text-purple-600">@{searchFarcasterUser.username}</p>
+                  {/* Creator/Owner Info - Name, FID, and Address */}
+                  {(searchFarcasterUser || displayFid) && (
+                    <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 space_d min-w-0">
+                          <h4 className="text-lg font-semibold text-purple-900 break-words">
+                            {searchFarcasterUser?.displayName || searchFarcasterUser?.username || (displayFid ? `FID: ${displayFid}` : "Unknown")}
+                          </h4>
+                          {displayFid && (
+                            <p className="text-sm text-purple-600 mt-1">FID: {displayFid}</p>
                           )}
                         </div>
-                      </div>
-                      {searchFarcasterUser.bio && (
-                        <p className="text-xs sm:text-sm text-purple-800 mt-2">{searchFarcasterUser.bio}</p>
-                      )}
-                      <div className="flex gap-3 sm:gap-4 mt-2 text-xs text-purple-600">
-                        {searchFarcasterUser.followersCount !== undefined && (
-                          <span>👥 {searchFarcasterUser.followersCount} followers</span>
-                        )}
-                        {searchFarcasterUser.castsCount !== undefined && (
-                          <span>📝 {searchFarcasterUser.castsCount} casts</span>
-                        )}
                       </div>
                     </div>
                   )}
                   
-                  {displayFid && !searchFarcasterUser && (
-                    <p className="text-sm sm:text-base text-gray-600 mb-2">FID: {displayFid}</p>
-                  )}
                   {searchMetadata?.attributes && searchMetadata.attributes.length > 0 && (
-                    <div className="mb-4">
-                      <h3 className="text-base sm:text-lg font-semibold mb-2">Attributes:</h3>
+                    <div className="mb-4 space_d">
+                      <h3 className="text-lg font-semibold mb-3">Attributes</h3>
                       <div className="flex flex-wrap gap-2">
                         {searchMetadata.attributes.map((attr, idx) => (
                           <div 
                             key={idx}
-                            className="bg-gray-100 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm"
+                            className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg border border-gray-200"
                           >
-                            <span className="font-semibold">{attr.trait_type}:</span>{" "}
-                            <span>{attr.value}</span>
+                            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              {attr.trait_type}
+                            </div>
+                            <div className="text-base font-semibold text-gray-900">
+                              {attr.value}
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  <p className="text-xs sm:text-sm text-gray-600 mb-4">
-                    Share this page to show off your NFT in Farcaster feeds!
-                  </p>
+                  
+                  {/* Description Section */}
+                  {searchMetadata?.description && (
+                    <div className="space_d mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
+                      <p className="text-sm text-gray-600">{searchMetadata.description}</p>
+                    </div>
+                  )}
+                  
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
+                    <p className="text-sm text-blue-800 font-medium mb-2">
+                      💡 Share this NFT
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      When you share this URL in a Farcaster cast, it will appear as a rich embed
+                      with a button to view the NFT directly in the app.
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3 sm:space-y-4">
-                {/* Share Buttons */}
-                <div className="nf_m flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                {/* Share Buttons - Icons in a row */}
+                <div className="flex flex-row gap-3 justify-center items-center">
                   <button
                     onClick={handleShareFarcaster}
                     disabled={isSharing}
-                    className="h-12 w-48 px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-full  hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold text-sm sm:text-base"
+                    className="w-12 h-12 flex items-center justify-center bg-wrap-600 text-white rounded-full hover:bg-wrap-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation"
+                    title="Share on Farcaster"
                   >
-                    {isSharing ? "Sharing..." : "📱 Share on Farcaster"}
+                    {isSharing ? (
+                      <span className="text-xl">⏳</span>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 1080 1080" fill="none"><rect width="1080" height="1080" rx="120" ></rect><path d="M847.387 270V343.023H774.425V415.985H796.779V416.01H847.387V810.795H725.173L725.099 810.434L662.737 515.101C656.791 486.949 641.232 461.477 618.927 443.362C596.623 425.248 568.527 415.275 539.818 415.275H539.575C510.866 415.275 482.77 425.248 460.466 443.362C438.161 461.477 422.602 486.958 416.657 515.101L354.223 810.795H232V416.001H282.608V415.985H304.959V343.023H232V270H847.387Z" fill="white"></path></svg>
+                    )}
                   </button>
                   
                   <button
                     onClick={handleShareTwitter}
-                    className="h-12 w-48 px-4 sm:px-6 py-2 sm:py-3 bg-blue-400 text-white rounded-full hover:bg-blue-500 transition-colors font-semibold text-sm sm:text-base"
+                    className="w-12 h-12 flex items-center justify-center bg-black text-white rounded-full hover:bg-gray-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation"
+                    title="Share on Twitter/X"
                   >
-                    🐦 Share on Twitter/X
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-current">
+                      <g>
+                        <path d="M21.742 21.75l-7.563-11.179 7.056-8.321h-2.456l-5.691 6.714-4.54-6.714H2.359l7.29 10.776L2.25 21.75h2.456l6.035-7.118 4.818 7.118h6.191-.008zM7.739 3.818L18.81 20.182h-2.447L5.29 3.818h2.447z"></path>
+                      </g>
+                    </svg>
                   </button>
                   
                   <button
                     onClick={handleCopyLink}
-                    className={`h-12 w-48 px-4 sm:px-6 py-2 sm:py-3 rounded-full transition-colors font-semibold text-sm sm:text-base ${
+                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xl touch-manipulation ${
                       copySuccess
                         ? "bg-green-600 text-white"
                         : "bg-gray-600 text-white hover:bg-gray-700"
                     }`}
+                    title={copySuccess ? "Copied!" : "Copy Link"}
                   >
-                    {copySuccess ? "✓ Copied!" : "📋 Copy Link"}
+                    {copySuccess ? "✓" : "📋"}
                   </button>
                 </div>
 
@@ -817,7 +842,7 @@ export default function GalleryPage() {
               {console.log("[Gallery] Rendering NFTs:", { count: nfts.length, nfts: nfts.map(n => ({ tokenId: n.tokenId, fid: n.fid })) })}
               <div className="flex flex-col gap-4 items-center w-full">
                 {nfts.map((nft) => (
-                  <div key={nft.tokenId} className="w-full max-w-2xl mx-auto">
+                  <div key={nft.tokenId} className="w-full max-w-2xl space_b mx-auto">
                     <NFTGalleryItem nft={nft} />
                   </div>
                 ))}

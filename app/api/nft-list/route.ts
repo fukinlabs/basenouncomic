@@ -138,8 +138,12 @@ export async function GET(request: NextRequest) {
     // Sort by tokenId (newest first)
     nfts.sort((a, b) => Number(b.tokenId) - Number(a.tokenId));
 
+    console.log(`[nft-list] Found ${nfts.length} NFTs, totalSupply: ${totalSupply}, offset: ${offset}, limit: ${limit}`);
+
     // Apply pagination
     const paginatedNFTs = nfts.slice(offset, offset + limit);
+
+    console.log(`[nft-list] Paginated NFTs: ${paginatedNFTs.length} NFTs (from ${offset} to ${offset + limit})`);
 
     // If we have nextId, use it for total supply
     if (totalSupply === 0) {
