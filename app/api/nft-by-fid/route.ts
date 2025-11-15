@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     // Check if FID has been minted with retry logic
     let mintedFid: boolean;
     try {
+      console.log(`[nft-by-fid] Checking mintedFid for FID ${fidNum}`);
       mintedFid = await publicClient.readContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: [
@@ -60,13 +61,15 @@ export async function GET(request: NextRequest) {
         functionName: "mintedFid",
         args: [BigInt(fidNum)],
       });
+      console.log(`[nft-by-fid] mintedFid result for FID ${fidNum}: ${mintedFid}`);
     } catch (error) {
-      console.error("Error checking mintedFid:", error);
+      console.error(`[nft-by-fid] Error checking mintedFid for FID ${fidNum}:`, error);
       // If RPC fails, return 503 to indicate service unavailable
       return NextResponse.json(
         { 
           error: "RPC service temporarily unavailable", 
           details: error instanceof Error ? error.message : String(error),
+          fid: fidNum,
           retry: true
         },
         { status: 503 }

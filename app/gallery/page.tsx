@@ -33,30 +33,44 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
     displayName?: string;
     avatarUrl?: string;
   } | null>(null);
+  const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+  const [metadataFetchFailed, setMetadataFetchFailed] = useState(false);
 
   // Fetch metadata if not already loaded
   useEffect(() => {
-    if (!metadata && nft.tokenId) {
+    if (!metadata && !isFetchingMetadata && !metadataFetchFailed && nft.tokenId) {
       // Validate tokenId first
       const tokenIdStr = String(nft.tokenId).trim();
       if (!/^\d+$/.test(tokenIdStr)) {
         console.error(`[Gallery] Invalid tokenId format: ${tokenIdStr}`);
+        setMetadataFetchFailed(true);
         return;
       }
       
+      setIsFetchingMetadata(true);
       fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`)
-        .then((res) => {
+        .then(async (res) => {
           if (res.ok) {
             return res.json();
           } else if (res.status === 404) {
-            console.warn(`[Gallery] Metadata not found for tokenId: ${tokenIdStr}, but NFT may still exist`);
+            // Try to get error details from response
+            const errorData = await res.json().catch(() => ({}));
+            // Only log warning if it's not a simple "not minted" error (NFT exists but metadata issue)
+            if (errorData.error && !errorData.error.includes("not been minted")) {
+              console.warn(`[Gallery] Metadata not found for tokenId: ${tokenIdStr}`, errorData.error);
+            }
+            setMetadataFetchFailed(true);
             return null;
           } else {
-            console.warn(`[Gallery] Error fetching metadata for tokenId: ${tokenIdStr}`, res.status);
+            // Log error details for non-404 errors
+            const errorData = await res.json().catch(() => ({}));
+            console.warn(`[Gallery] Error fetching metadata for tokenId: ${tokenIdStr}`, res.status, errorData.error || errorData.details || 'Unknown error');
+            setMetadataFetchFailed(true);
             return null;
           }
         })
         .then((data: NFTMetadata | null) => {
+          setIsFetchingMetadata(false);
           if (data) {
             setMetadata(data);
             // Extract FID from metadata attributes to use as seed for art generation
@@ -112,6 +126,8 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           }
         })
         .catch((err) => {
+          setIsFetchingMetadata(false);
+          setMetadataFetchFailed(true);
           console.error("Error fetching metadata:", err);
           // If fetch fails but FID is available, use it
           if (nft.fid) {
@@ -187,7 +203,7 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           });
       }
     }
-  }, [nft.tokenId, nft.fid, metadata, fid, farcasterUser]);
+  }, [nft.tokenId, nft.fid, metadata, fid, farcasterUser, isFetchingMetadata, metadataFetchFailed]);
 
   useEffect(() => {
     if (canvasRef.current) {

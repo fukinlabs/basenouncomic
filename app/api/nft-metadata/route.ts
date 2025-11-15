@@ -77,9 +77,15 @@ export async function GET(request: NextRequest) {
         functionName: "tokenURI",
         args: [BigInt(tokenIdNum)], // tokenId = nextId++ (0, 1, 2, 3...), FID is in tokenURI metadata
       });
-    } catch {
+      console.log(`[nft-metadata] Successfully read tokenURI for tokenId ${tokenIdNum}, length: ${tokenURI?.length || 0}`);
+    } catch (error) {
+      console.error(`[nft-metadata] Error reading tokenURI for tokenId ${tokenIdNum}:`, error);
       return NextResponse.json(
-        { error: "Failed to read tokenURI from contract" },
+        { 
+          error: "Failed to read tokenURI from contract",
+          details: error instanceof Error ? error.message : String(error),
+          tokenId: tokenIdNum
+        },
         { status: 500 }
       );
     }
@@ -91,53 +97,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Convert IPFS URL to HTTP URL if needed
-    let metadataUrl = tokenURI;
-    if (tokenURI.startsWith("ipfs://")) {
-      const ipfsHash = tokenURI.replace("ipfs://", "");
-      metadataUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-    }
-
-    // Fetch metadata JSON with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    let metadataResponse: Response;
-    try {
-      metadataResponse = await fetch(metadataUrl, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        return NextResponse.json(
-          { error: "Request timeout: Failed to fetch metadata" },
-          { status: 504 }
-        );
-      }
-      throw error;
-    }
-    
-    if (!metadataResponse.ok) {
-      // If metadata fetch fails, try to extract image from tokenURI directly
-      // (in case tokenURI is just an image URL)
-      if (tokenURI.startsWith("ipfs://")) {
-        const ipfsHash = tokenURI.replace("ipfs://", "");
-        const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-        return NextResponse.json({
-          image: imageUrl,
-          name: `NFT #${tokenId}`,
-          description: "NFT from contract",
-        });
-      }
-      
-      return NextResponse.json(
-        { error: "Failed to fetch metadata", details: await metadataResponse.text() },
-        { status: metadataResponse.status }
-      );
-    }
-
+    // Handle base64 encoded tokenURI (data:application/json;base64,...)
     let metadata: {
       name?: string;
       description?: string;
@@ -145,13 +105,103 @@ export async function GET(request: NextRequest) {
       attributes?: Array<{ trait_type: string; value: string | number }>;
       [key: string]: unknown;
     };
-    try {
-      metadata = await metadataResponse.json();
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON response from metadata URL" },
-        { status: 500 }
-      );
+    
+    if (tokenURI.startsWith("data:application/json;base64,")) {
+      // TokenURI is base64 encoded JSON - decode it directly
+      try {
+        const base64Data = tokenURI.replace("data:application/json;base64,", "");
+        const jsonStr = Buffer.from(base64Data, "base64").toString("utf-8");
+        console.log(`[nft-metadata] Decoded base64 tokenURI for tokenId ${tokenIdNum}, JSON length: ${jsonStr.length}`);
+        metadata = JSON.parse(jsonStr);
+      } catch (error) {
+        console.error(`[nft-metadata] Error decoding base64 tokenURI for tokenId ${tokenIdNum}:`, error);
+        return NextResponse.json(
+          { 
+            error: "Failed to decode base64 tokenURI",
+            details: error instanceof Error ? error.message : String(error),
+            tokenId: tokenIdNum
+          },
+          { status: 500 }
+        );
+      }
+    } else {
+      // TokenURI is a URL (IPFS or HTTP) - fetch it
+      let metadataUrl = tokenURI;
+      if (tokenURI.startsWith("ipfs://")) {
+        const ipfsHash = tokenURI.replace("ipfs://", "");
+        metadataUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+      }
+
+      // Fetch metadata JSON with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      let metadataResponse: Response;
+      try {
+        console.log(`[nft-metadata] Fetching metadata from URL: ${metadataUrl}`);
+        metadataResponse = await fetch(metadataUrl, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.error(`[nft-metadata] Timeout fetching metadata for tokenId ${tokenIdNum}`);
+          return NextResponse.json(
+            { 
+              error: "Request timeout: Failed to fetch metadata",
+              tokenId: tokenIdNum,
+              url: metadataUrl
+            },
+            { status: 504 }
+          );
+        }
+        console.error(`[nft-metadata] Error fetching metadata for tokenId ${tokenIdNum}:`, error);
+        throw error;
+      }
+      
+      if (!metadataResponse.ok) {
+        console.error(`[nft-metadata] Metadata fetch failed for tokenId ${tokenIdNum}: ${metadataResponse.status} ${metadataResponse.statusText}`);
+        // If metadata fetch fails, try to extract image from tokenURI directly
+        // (in case tokenURI is just an image URL)
+        if (tokenURI.startsWith("ipfs://")) {
+          const ipfsHash = tokenURI.replace("ipfs://", "");
+          const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+          return NextResponse.json({
+            image: imageUrl,
+            name: `NFT #${tokenId}`,
+            description: "NFT from contract",
+          });
+        }
+        
+        const errorText = await metadataResponse.text().catch(() => "Unknown error");
+        return NextResponse.json(
+          { 
+            error: "Failed to fetch metadata",
+            details: errorText,
+            status: metadataResponse.status,
+            tokenId: tokenIdNum,
+            url: metadataUrl
+          },
+          { status: metadataResponse.status }
+        );
+      }
+
+      try {
+        metadata = await metadataResponse.json();
+        console.log(`[nft-metadata] Successfully parsed metadata for tokenId ${tokenIdNum}`);
+      } catch (error) {
+        console.error(`[nft-metadata] Error parsing JSON response for tokenId ${tokenIdNum}:`, error);
+        return NextResponse.json(
+          { 
+            error: "Invalid JSON response from metadata URL",
+            details: error instanceof Error ? error.message : String(error),
+            tokenId: tokenIdNum,
+            url: metadataUrl
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Validate metadata structure
@@ -229,11 +279,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(metadata);
   } catch (error) {
-    console.error("Error fetching NFT metadata:", error);
+    console.error(`[nft-metadata] Unexpected error fetching NFT metadata for tokenId ${request.nextUrl.searchParams.get("tokenId")}:`, error);
     return NextResponse.json(
       { 
         error: "Failed to fetch NFT metadata", 
-        details: error instanceof Error ? error.message : String(error) 
+        details: error instanceof Error ? error.message : String(error),
+        tokenId: request.nextUrl.searchParams.get("tokenId") || "unknown"
       },
       { status: 500 }
     );
