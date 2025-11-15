@@ -299,19 +299,19 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           )}
 
           {/* View Details Button */}
-          <div className="mt-4">
+          <div className="mt-4 text-white">
             {!nft.tokenId || !/^\d+$/.test(String(nft.tokenId).trim()) ? (
-              <div className="h-8 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed text-sm sm:text-base">
+              <div className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed text-sm sm:text-base">
                 Invalid Token ID
               </div>
             ) : nftExists === false ? (
-              <div className="h-8 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-100 text-red-700 rounded-lg cursor-not-allowed text-sm sm:text-base border border-red-200">
+              <div className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-100 text-red-700 rounded-lg cursor-not-allowed text-sm sm:text-base border border-red-200">
                 NFT Not Found
               </div>
             ) : (
               <Link
                 href={`/mint/${String(nft.tokenId).trim()}`}
-                className="h-8 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
+                className="h-10 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
               >
                 View Full Details →
               </Link>
@@ -332,7 +332,7 @@ export default function GalleryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const limit = 20;
+  const limit = 5; // Show 5 items initially
 
   // Fetch NFT list (only when not searching)
   useEffect(() => {
@@ -689,7 +689,7 @@ export default function GalleryPage() {
               <button
                 type="submit"
                 disabled={isSearching || !searchTerm.trim()}
-                className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                className="h-8 w-15  flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 {isSearching ? "Searching..." : "Search"}
               </button>
