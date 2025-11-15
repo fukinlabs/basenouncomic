@@ -327,6 +327,8 @@ export default function GalleryPage() {
         }
 
         const data = await response.json();
+        console.log("[Gallery] Fetched NFT data:", { total: data.total, nftsCount: data.nfts?.length, nfts: data.nfts });
+        
         if (isMounted) {
           setTotal(data.total || 0);
           setHasMore(data.hasMore || false);
@@ -344,12 +346,14 @@ export default function GalleryPage() {
                     name: metadata.name,
                   };
                 }
-              } catch {
-                // Ignore metadata fetch errors
+              } catch (error) {
+                console.warn(`[Gallery] Failed to fetch metadata for tokenId ${nft.tokenId}:`, error);
               }
               return nft;
             })
           );
+
+          console.log("[Gallery] NFTs with metadata:", { count: nftsWithMetadata.length, nfts: nftsWithMetadata });
 
           if (isMounted) {
             if (page === 1) {
@@ -586,7 +590,7 @@ export default function GalleryPage() {
     <main className="min-h-screen bg-black p-2 sm:p-4">
       <div className="max-w-6xl mx-auto w-full">
         {/* Header */}
-        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+        <div className="pace_g mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">🎨 NFT Gallery</h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
@@ -810,6 +814,7 @@ export default function GalleryPage() {
             </div>
           ) : (
             <>
+              {console.log("[Gallery] Rendering NFTs:", { count: nfts.length, nfts: nfts.map(n => ({ tokenId: n.tokenId, fid: n.fid })) })}
               <div className="flex flex-col gap-4 items-center w-full">
                 {nfts.map((nft) => (
                   <div key={nft.tokenId} className="w-full max-w-2xl mx-auto">

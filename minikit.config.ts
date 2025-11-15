@@ -12,9 +12,9 @@ export const minikitConfig = {
   },
   miniapp: {
     version: "1",
-    name: "basenouncomic",
-     subtitle: "Your AI Ad Companion", 
-    description: "Ads",
+    name: "Farcaster Abstract P5",
+     subtitle: "P5js AI Nouns Companion", 
+    description: "AI Generative Nouns Companion",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
     iconUrl: `${ROOT_URL}/splash.png`,
     splashImageUrl: `${ROOT_URL}/monkey.gif`,
