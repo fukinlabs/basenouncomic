@@ -206,9 +206,9 @@ export default function Header() {
     <>
       {/* Farcaster User Profile - Top Right (Show if we have FID and not signed out) */}
       {!isSignedOut && fid && (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-50" style={{ paddingRight: '5px' }} >
           <div 
-            className="flex items-center gap-3 bg-purple-600 rounded-full px-4 py-2 border border-purple-700 cursor-pointer hover:bg-purple-700 transition-colors shadow-lg"
+            className="flex items-center gap-3 bg-purple-600 rounded-full px-4 py-2 border border-wrap-700 cursor-pointer hover:bg-wrap-700 transition-colors shadow-lg"
             onClick={() => setShowUserMenu(!showUserMenu)}
           >
             {farcasterUser?.avatarUrl ? (
