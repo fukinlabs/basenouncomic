@@ -297,6 +297,24 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             )}
           </div>
           <div className="text-left">
+            {/* FID and TOKEN ID Display Boxes */}
+            {(fid || tokenId) && (
+              <div className="mb-6 flex flex-col sm:flex-row gap-4">
+                {fid && (
+                  <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="text-sm font-medium text-gray-600 mb-2">FID</div>
+                    <div className="text-2xl font-bold text-gray-900">{fid}</div>
+                  </div>
+                )}
+                {tokenId && (
+                  <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="text-sm font-medium text-gray-600 mb-2">TOKEN ID</div>
+                    <div className="text-2xl font-bold text-gray-900">{tokenId}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Creator/Owner Info - Name, FID, and Address */}
             {(farcasterUser || fid || ownerAddress) && (
               <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
@@ -305,9 +323,6 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                     <h4 className="text-lg font-semibold text-purple-900 break-words">
                       {farcasterUser?.displayName || farcasterUser?.username || (fid ? `FID: ${fid}` : "Unknown")}
                     </h4>
-                    {fid && (
-                      <p className="text-sm text-purple-600 mt-1">FID: {fid}</p>
-                    )}
                     {ownerAddress && (
                       <p className="text-sm font-mono text-purple-700 mt-1 break-all">
                         {ownerAddress}
@@ -408,7 +423,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           <div className="flex flex-col space_b  text-white sm:flex-row gap-3 justify-center"> 
             <Link
               href="/gallery"
-              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation min-h-[44px] flex items-center justify-center"
+              className="px-6 py-3 bg-wrap-600 text-white rounded-lg hover:bg-wrap-700 active:bg-wrap-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation min-h-[44px] flex items-center justify-center"
             >
               View Gallery
             </Link>
