@@ -222,14 +222,14 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               alt="404 Error - NFT Not Found"
               width={600}
               height={400}
-              className="w-full h-auto rounded-lg shadow-lg mx-auto"
+              className="w-full h-auto   mx-auto"
               unoptimized
             />
           </div>
           
           <Link
             href="/mint"
-            className="inline-block px-6 py-3 bg-action-primary text-white rounded-full hover:opacity-90 transition-opacity font-semibold shadow-lg hover:shadow-xl"
+            className="h-12 w-48 nf_m inline-flex items-center justify-center px-6 py-3 bg-action-primary text-white rounded-full hover:opacity-90 transition-opacity font-semibold shadow-lg hover:shadow-xl"
           >
             Go to Mint Page →
           </Link>
