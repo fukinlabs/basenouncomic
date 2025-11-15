@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useConnect, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { sdk } from "@farcaster/miniapp-sdk";
 import { minikitConfig } from "../../minikit.config";
@@ -11,10 +11,10 @@ import contractABI from "../../lib/contract-abi.json";
 import { NFT_CONTRACT_ADDRESS } from "../../lib/contract-config";
 
 export default function MintPage() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { address } = useAccount(); // Keep address as fallback
   const { composeCastAsync } = useComposeCast();
   const [fid, setFid] = useState<string>("");
+  const [signInAddress, setSignInAddress] = useState<string | null>(null); // Address from Farcaster Sign In
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
   const [isMinting, setIsMinting] = useState(false);
   const [imageBase64, setImageBase64] = useState<string>("");
@@ -86,6 +86,14 @@ export default function MintPage() {
     }
   }, [isInterfaceReady, hasCalledReady]);
 
+  // Load address from localStorage on mount
+  useEffect(() => {
+    const storedAddress = localStorage.getItem("farcaster_address");
+    if (storedAddress) {
+      setSignInAddress(storedAddress);
+    }
+  }, []);
+
   // Check if user has signed out (from localStorage) and listen for changes
   useEffect(() => {
     const checkSignOut = () => {
@@ -95,6 +103,7 @@ export default function MintPage() {
         // Clear sign in state when signed out
         setIsSignedIn(false);
         setFid(""); // Clear FID to show Sign In button
+        setSignInAddress(null); // Clear address from Sign In
       } else {
         setIsSignedOut(false);
       }
@@ -181,7 +190,10 @@ export default function MintPage() {
       const verifyData = await verifyResponse.json();
       if (verifyData.success && verifyData.user?.fid) {
         const extractedFid = verifyData.user.fid.toString();
+        const extractedAddress = verifyData.user.address; // Address from Farcaster Sign In
+        
         setFid(extractedFid);
+        setSignInAddress(extractedAddress || null); // Store address from Sign In
         setIsSignedIn(true);
         setSignInError(null);
         setIsSignedOut(false); // Clear sign out flag when signing in
@@ -193,11 +205,14 @@ export default function MintPage() {
         // Store sign in state in localStorage for Header component
         localStorage.setItem("farcaster_signed_in", "true");
         localStorage.setItem("farcaster_fid", extractedFid);
+        if (extractedAddress) {
+          localStorage.setItem("farcaster_address", extractedAddress);
+        }
         
         // Dispatch custom event to notify Header component immediately
         window.dispatchEvent(new Event("farcaster-signin"));
         
-        console.log("[Mint] Sign in complete, FID stored:", extractedFid);
+        console.log("[Mint] Sign in complete, FID stored:", extractedFid, "Address:", extractedAddress);
         
         // Header component will handle user data display
       }
@@ -690,8 +705,11 @@ export default function MintPage() {
 
 
   const handleMint = async () => {
-    if (!isConnected || !address) {
-      alert("Please connect your wallet first");
+    // Use address from Farcaster Sign In (signInAddress) instead of wallet connection
+    const mintAddress = signInAddress || address;
+    
+    if (!mintAddress) {
+      alert("Please sign in with Farcaster first to get your address");
       return;
     }
 
@@ -870,13 +888,13 @@ export default function MintPage() {
       
       // Verify contract address before minting
       console.log("Minting to contract:", NFT_CONTRACT_ADDRESS);
-      console.log("Mint args:", { to: address, fid, imageDataLength: imageData.length, externalUrl });
+      console.log("Mint args:", { to: mintAddress, fid, imageDataLength: imageData.length, externalUrl });
       
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
         functionName: "mint",
-        args: [address, BigInt(fid), imageData, externalUrl],
+        args: [mintAddress, BigInt(fid), imageData, externalUrl],
       });
     } catch (error) {
       console.error("Mint error:", error);
@@ -1052,16 +1070,44 @@ export default function MintPage() {
             />
           </div>
         )}
-        {!isConnected ? (
-          <div className="text-center p-8 rounded-full shadow-lg">
-            {connectors.length > 0 && (
-              <button
-                onClick={() => connect({ connector: connectors[0] })}
-                className="h-12 w-48 p-6 py-3 nf_m bg-purple-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-              >
-                Connect Wallet
-              </button>
-            )}
+        {!fid ? (
+          <div className="p-8 rounded-full shadow-lg">
+            <div className="text-center">
+              {!isSignedIn && (
+                <div>
+                  <button
+                    onClick={handleSignIn}
+                    disabled={isSigningIn}
+                    className="px-8 py-3 bg-blue-600 nf_m text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+                    style={{
+                      backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
+                      color: '#ffffff',
+                      padding: '15px',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSigningIn) {
+                        e.currentTarget.style.backgroundColor = '#7e22ce';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSigningIn) {
+                        e.currentTarget.style.backgroundColor = '#9333ea';
+                      }
+                    }}
+                  >
+                    {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
+                  </button>
+                  {signInError && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-full">
+                      <p className="text-red-600 text-sm">{signInError}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {isSignedIn && (
+                <p className="text-sm text-green-600 mt-2">Waiting for FID...</p>
+              )}
+            </div>
           </div>
         ) : mintedTokenId ? (
           <div className="text-center p-8 bg-green-50  shadow-lg">
@@ -1293,40 +1339,47 @@ export default function MintPage() {
                   </button>
                 ) : !isSignedOut && fid ? (
                   // Show Mint button if we have FID (from context or sign in)
-                  // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted + tokenId), show View NFT button instead
-                  (mintedTokenId || (isAlreadyMinted === true && userNFT?.tokenId)) ? (
+                  // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted), show View NFT button instead
+                  (mintedTokenId || !!isAlreadyMinted) ? (
                     <a
-                      href={`/mint/${mintedTokenId || userNFT?.tokenId || ""}`}
-                      className="h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center"
+                      href={`/mint/${mintedTokenId || userNFT?.tokenId || fid}`}
+                      className={`h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center ${
+                        !mintedTokenId && !userNFT?.tokenId ? 'opacity-75 cursor-wait' : ''
+                      }`}
                       style={{
                         backgroundColor: '#9333ea',
                         color: '#ffffff',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#7e22ce';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#9333ea';
-                      }}
-                    >
-                      View NFT →
-                    </a>
-                  ) : (
-                    <button
-                      onClick={handleMint}
-                      disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true}
-                      className="h-12 w-48  nf_m max-w-xs px-8 py-4 rounded-full disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
-                      style={{
-                        backgroundColor: (isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true) ? '#9ca3af' : '#9333ea',
-                        color: '#ffffff',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                        if (mintedTokenId || userNFT?.tokenId) {
                           e.currentTarget.style.backgroundColor = '#7e22ce';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || isAlreadyMinted === true)) {
+                        if (mintedTokenId || userNFT?.tokenId) {
+                          e.currentTarget.style.backgroundColor = '#9333ea';
+                        }
+                      }}
+                      title={!mintedTokenId && !userNFT?.tokenId ? "Loading tokenId..." : "View your NFT"}
+                    >
+                      {(!mintedTokenId && !userNFT?.tokenId) ? "Loading..." : "View NFT →"}
+                    </a>
+                  ) : (
+                    <button
+                      onClick={handleMint}
+                      disabled={isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || !!isAlreadyMinted}
+                      className="h-12 w-48  nf_m max-w-xs px-8 py-4 rounded-full disabled:cursor-not-allowed transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase"
+                      style={{
+                        backgroundColor: (isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || !!isAlreadyMinted) ? '#9ca3af' : '#9333ea',
+                        color: '#ffffff',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || !!isAlreadyMinted)) {
+                          e.currentTarget.style.backgroundColor = '#7e22ce';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!(isMinting || isPendingWrite || isConfirming || !fid || !imageBase64 || !!isAlreadyMinted)) {
                           e.currentTarget.style.backgroundColor = '#9333ea';
                         }
                       }}
