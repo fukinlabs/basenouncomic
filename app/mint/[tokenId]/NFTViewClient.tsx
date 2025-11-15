@@ -67,6 +67,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         
         // If not found, try using tokenId as FID to find the actual tokenId
         // (in case user entered FID instead of tokenId in URL)
+        let actualTokenId = tokenIdStr;
         if (!metadataResponse.ok && metadataResponse.status === 404) {
           console.log("[NFTViewClient] Metadata not found with tokenId, trying to find by FID...");
           // Try fetching by FID to get the actual tokenId
@@ -75,16 +76,12 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             const fidData = await fidResponse.json();
             console.log("[NFTViewClient] Found NFT by FID:", fidData);
             if (fidData.tokenId && fidData.tokenId !== tokenIdStr) {
-              // Found different tokenId, fetch metadata using the actual tokenId
-              console.log("[NFTViewClient] Using actual tokenId from FID lookup:", fidData.tokenId);
-              metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(fidData.tokenId)}`);
-            } else if (fidData.tokenId === tokenIdStr) {
-              // Same tokenId, but metadata fetch failed - might be a timing issue
-              console.warn("[NFTViewClient] TokenId matches but metadata fetch failed, retrying...");
-              // Retry once
-              await new Promise(resolve => setTimeout(resolve, 500));
-              metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
+              // Found different tokenId, use it for subsequent fetches
+              actualTokenId = fidData.tokenId;
+              console.log("[NFTViewClient] Using actual tokenId from FID lookup:", actualTokenId);
+              metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(actualTokenId)}`);
             }
+            // If same tokenId, don't retry - metadata doesn't exist
           }
         }
         
@@ -95,12 +92,11 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           if (metadataResponse.status === 404) {
             const errorData = await metadataResponse.json().catch(() => ({}));
             if (isMounted) {
-              // If contract uses tokenId = FID, we can still generate art
-              // Set tokenId as FID and allow art generation
-              setFid(tokenId);
+              // Set tokenId as FID for art generation fallback
+              setFid(tokenIdStr);
               
-              // Try to fetch Farcaster user data using tokenId as FID
-              fetch(`/api/farcaster-user?fid=${encodeURIComponent(tokenId)}`)
+              // Try to fetch Farcaster user data using tokenId as FID (only if not already fetched)
+              fetch(`/api/farcaster-user?fid=${encodeURIComponent(tokenIdStr)}`)
                 .then((userRes) => userRes.ok ? userRes.json() : null)
                 .then((userData) => {
                   if (isMounted && userData?.user) {
@@ -118,8 +114,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             // Other errors
             console.warn("Metadata not found, using ArtGenerator fallback");
             if (isMounted) {
-              // Still allow art generation with tokenId as FID
-              setFid(tokenId);
+              setFid(tokenIdStr);
               setError("Failed to load metadata");
               setIsLoading(false);
             }
@@ -128,11 +123,25 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
         }
 
         const data = await metadataResponse.json();
-        if (isMounted) {
-          setMetadata(data);
-          
-          // Fetch owner address from contract
-          fetch(`/api/nft-check?tokenId=${encodeURIComponent(tokenId)}`)
+        if (!isMounted) return;
+        
+        setMetadata(data);
+        
+        // Extract FID from metadata attributes
+        let extractedFid: string | undefined = undefined;
+        const fidAttr = data.attributes?.find((attr: { trait_type: string; value: string | number }) => 
+          attr.trait_type === "FID"
+        );
+        if (fidAttr && fidAttr.value) {
+          extractedFid = String(fidAttr.value);
+        }
+        
+        // Fetch owner address and Farcaster user data in parallel (optimize API calls)
+        const fetchPromises: Promise<void>[] = [];
+        
+        // Fetch owner address
+        fetchPromises.push(
+          fetch(`/api/nft-check?tokenId=${encodeURIComponent(actualTokenId)}`)
             .then((checkRes) => checkRes.ok ? checkRes.json() : null)
             .then((checkData) => {
               if (isMounted && checkData?.owner) {
@@ -141,27 +150,14 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             })
             .catch((err) => {
               console.warn("Error fetching owner address:", err);
-            });
-          
-          // If smart contract uses tokenID = FID, use tokenId as FID directly
-          // Otherwise, extract FID from metadata attributes
-          let extractedFid: string | undefined = undefined;
-          
-          // Try to extract FID from metadata attributes first
-          const fidAttr = data.attributes?.find((attr: { trait_type: string; value: string | number }) => 
-            attr.trait_type === "FID"
-          );
-          if (fidAttr && fidAttr.value) {
-            extractedFid = String(fidAttr.value);
-          } else {
-            // If FID not in metadata, assume tokenId = FID (for contracts where tokenId = FID)
-            extractedFid = tokenId;
-          }
-          
-          if (extractedFid) {
-            setFid(extractedFid);
-            
-            // Fetch Farcaster user data (for avatar and name)
+            })
+            .then(() => {}) // Convert to Promise<void>
+        );
+        
+        // Fetch Farcaster user data only if we have FID
+        if (extractedFid) {
+          setFid(extractedFid);
+          fetchPromises.push(
             fetch(`/api/farcaster-user?fid=${encodeURIComponent(extractedFid)}`)
               .then((userRes) => userRes.ok ? userRes.json() : null)
               .then((userData) => {
@@ -171,10 +167,16 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               })
               .catch((err) => {
                 console.warn("Error fetching Farcaster user:", err);
-                // Don't show error, just skip user data
-              });
-          }
+              })
+              .then(() => {}) // Convert to Promise<void>
+          );
+        } else {
+          // If no FID in metadata, use tokenId as fallback
+          setFid(tokenIdStr);
         }
+        
+        // Wait for all parallel fetches to complete
+        await Promise.all(fetchPromises);
       } catch (err) {
         console.error("Error fetching metadata:", err);
         if (isMounted) {
