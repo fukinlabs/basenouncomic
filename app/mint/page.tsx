@@ -29,6 +29,17 @@ export default function MintPage() {
   const [isSignedOut, setIsSignedOut] = useState(false);
   const [tokenIdError, setTokenIdError] = useState<string | null>(null);
 
+  // Helper function to check if error is user rejection
+  const isUserRejected = (errorMessage: string): boolean => {
+    const message = errorMessage.toLowerCase();
+    return (
+      message.includes("user rejected") ||
+      message.includes("rejected the request") ||
+      message.includes("user denied") ||
+      message.includes("user cancelled")
+    );
+  };
+
   // Call ready when interface is fully loaded (following Farcaster docs)
   // https://miniapps.farcaster.xyz/docs/guides/loading
   // Wait for your app to be ready, then call sdk.actions.ready()
@@ -542,13 +553,7 @@ export default function MintPage() {
   useEffect(() => {
     if (writeError) {
       const errorMessage = writeError?.message || "";
-      const isUserRejected = 
-        errorMessage.toLowerCase().includes("user rejected") ||
-        errorMessage.toLowerCase().includes("rejected the request") ||
-        errorMessage.toLowerCase().includes("user denied") ||
-        errorMessage.toLowerCase().includes("user cancelled");
-      
-      if (isUserRejected) {
+      if (isUserRejected(errorMessage)) {
         setIsMinting(false);
       }
     }
@@ -876,14 +881,9 @@ export default function MintPage() {
     } catch (error) {
       console.error("Mint error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const isUserRejected = 
-        errorMessage.toLowerCase().includes("user rejected") ||
-        errorMessage.toLowerCase().includes("rejected the request") ||
-        errorMessage.toLowerCase().includes("user denied") ||
-        errorMessage.toLowerCase().includes("user cancelled");
       
       // Don't show alert if user rejected/cancelled - it's expected behavior
-      if (!isUserRejected) {
+      if (!isUserRejected(errorMessage)) {
         alert(`Mint failed: ${errorMessage}`);
       }
       setIsMinting(false);
@@ -1063,54 +1063,6 @@ export default function MintPage() {
               </button>
             )}
           </div>
-        ) : !fid ? (
-          <div className="  p-8 rounded-full shadow-lg">
-            <div className="text-center">
-            {/* <h2 className="text-2xl font-bold mb-2 text-gray-800">Sign In with Farcaster</h2>
-              <p className="text-gray-600 mb-6">
-                {isSignedIn ? "Signed in successfully!" : "Sign in with Farcaster to continue"}
-              </p> */}
-
-
-
-              {!isSignedIn && (
-                <div>
-                  <button
-                    onClick={handleSignIn}
-                    disabled={isSigningIn}
-                    className="px-8 py-3 bg-blue-600 nf_m text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
-                 
-                   style={{
-                      backgroundColor: isSigningIn ? '#9ca3af' : '#9333ea',
-                      color: '#ffffff',
-                      padding: '15px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSigningIn) {
-                        e.currentTarget.style.backgroundColor = '#7e22ce';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSigningIn) {
-                        e.currentTarget.style.backgroundColor = '#9333ea';
-                      }
-                    }}
-                 
-                 >
-                    {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
-                  </button>
-                  {signInError && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-full">
-                      <p className="text-red-600 text-sm">{signInError}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              {isSignedIn && (
-                <p className="text-sm text-green-600 mt-2">Waiting for FID...</p>
-              )}
-            </div>
-          </div>
         ) : mintedTokenId ? (
           <div className="text-center p-8 bg-green-50  shadow-lg">
             <div className="mb-4">
@@ -1222,7 +1174,8 @@ export default function MintPage() {
               </div>
             )}
 
-            {fid && isLoadingNFT && (
+            {/* Loading state - show when fetching NFT data */}
+            {fid && isLoadingNFT && !userNFT && (
               <div className="w-full p-4 bg-gray-50 rounded-full">
                 <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
               </div>
@@ -1234,13 +1187,6 @@ export default function MintPage() {
                 <p className="text-sm text-blue-700 text-center">
                   You haven&apos;t minted an NFT yet. Mint your first NFT below! 🎨
                 </p>
-              </div>
-            )}
-
-            {/* Error handling for tokenId fetch when NFT is already minted */}
-            {isAlreadyMinted === true && isLoadingNFT && (
-              <div className="w-full p-4 bg-gray-50 rounded-full">
-                <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
               </div>
             )}
             
@@ -1408,14 +1354,9 @@ export default function MintPage() {
 
               {(writeError || txError) && (() => {
                 const errorMessage = writeError?.message || txError?.message || "";
-                const isUserRejected = 
-                  errorMessage.toLowerCase().includes("user rejected") ||
-                  errorMessage.toLowerCase().includes("rejected the request") ||
-                  errorMessage.toLowerCase().includes("user denied") ||
-                  errorMessage.toLowerCase().includes("user cancelled");
                 
                 // Don't show error if user rejected/cancelled - it's expected behavior
-                if (isUserRejected) {
+                if (isUserRejected(errorMessage)) {
                   return null;
                 }
                 
