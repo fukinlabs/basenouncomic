@@ -33,12 +33,33 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
     displayName?: string;
     avatarUrl?: string;
   } | null>(null);
+  const [nftExists, setNftExists] = useState<boolean | null>(null); // null = not checked yet
 
   // Fetch metadata if not already loaded
   useEffect(() => {
     if (!metadata && nft.tokenId) {
-      fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(nft.tokenId)}`)
-        .then((res) => res.ok ? res.json() : null)
+      // Validate tokenId first
+      const tokenIdStr = String(nft.tokenId).trim();
+      if (!/^\d+$/.test(tokenIdStr)) {
+        console.error(`[Gallery] Invalid tokenId format: ${tokenIdStr}`);
+        setNftExists(false);
+        return;
+      }
+      
+      fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`)
+        .then((res) => {
+          if (res.ok) {
+            setNftExists(true);
+            return res.json();
+          } else if (res.status === 404) {
+            setNftExists(false);
+            console.warn(`[Gallery] NFT not found for tokenId: ${tokenIdStr}`);
+            return null;
+          } else {
+            setNftExists(null); // Unknown status
+            return null;
+          }
+        })
         .then((data: NFTMetadata | null) => {
           if (data) {
             setMetadata(data);
@@ -279,12 +300,22 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
 
           {/* View Details Button */}
           <div className="mt-4 text-white ">
-            <Link
-              href={`/mint/${nft.tokenId}`}
-              className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center text-sm sm:text-base"
-            >
-              View Full Details →
-            </Link>
+            {!nft.tokenId || !/^\d+$/.test(String(nft.tokenId).trim()) ? (
+              <div className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-gray-500 text-white rounded-lg cursor-not-allowed text-center text-sm sm:text-base">
+                Invalid Token ID
+              </div>
+            ) : nftExists === false ? (
+              <div className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-500 text-white rounded-lg cursor-not-allowed text-center text-sm sm:text-base">
+                NFT Not Found
+              </div>
+            ) : (
+              <Link
+                href={`/mint/${String(nft.tokenId).trim()}`}
+                className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center text-sm sm:text-base"
+              >
+                View Full Details →
+              </Link>
+            )}
           </div>
         </div>
       </div>

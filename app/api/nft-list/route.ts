@@ -84,11 +84,20 @@ export async function GET(request: NextRequest) {
               console.warn(`Could not fetch metadata for tokenId ${i}:`, metadataError);
             }
             
+            const tokenIdStr = String(i);
+            // Validate tokenId before adding
+            if (!/^\d+$/.test(tokenIdStr)) {
+              console.warn(`[nft-list] Invalid tokenId format: ${tokenIdStr}, skipping`);
+              continue;
+            }
+            
             nfts.push({
-              tokenId: String(i),
+              tokenId: tokenIdStr,
               owner,
               fid,
             });
+            
+            console.log(`[nft-list] Added NFT: tokenId=${tokenIdStr}, owner=${owner}, fid=${fid || 'N/A'}`);
           }
         } catch (error) {
           // If ownerOf fails, NFT doesn't exist (skip it)
@@ -123,11 +132,20 @@ export async function GET(request: NextRequest) {
           const event = log as { args?: { tokenId?: bigint; to?: string; fid?: bigint } };
           const tokenId = event.args?.tokenId?.toString();
           if (tokenId && /^\d+$/.test(tokenId)) {
-            nfts.push({
-              tokenId,
-              owner: event.args?.to || "",
-              fid: event.args?.fid?.toString(),
-            });
+            const tokenIdStr = tokenId.trim();
+            // Double validate tokenId
+            if (/^\d+$/.test(tokenIdStr)) {
+              nfts.push({
+                tokenId: tokenIdStr,
+                owner: event.args?.to || "",
+                fid: event.args?.fid?.toString(),
+              });
+              console.log(`[nft-list] Added NFT from event: tokenId=${tokenIdStr}, owner=${event.args?.to || 'N/A'}, fid=${event.args?.fid?.toString() || 'N/A'}`);
+            } else {
+              console.warn(`[nft-list] Invalid tokenId from event: ${tokenId}, skipping`);
+            }
+          } else {
+            console.warn(`[nft-list] Invalid tokenId format from event: ${tokenId}, skipping`);
           }
         });
       } catch (eventError) {

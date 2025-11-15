@@ -47,20 +47,43 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
       try {
         setIsLoading(true);
         
+        // Validate tokenId
+        const tokenIdStr = String(tokenId).trim();
+        console.log("[NFTViewClient] Fetching metadata for tokenId:", tokenIdStr);
+        
+        if (!tokenIdStr || !/^\d+$/.test(tokenIdStr)) {
+          console.error("[NFTViewClient] Invalid tokenId format:", tokenIdStr);
+          if (isMounted) {
+            setError("Invalid tokenId format. TokenId must be a number.");
+            setIsLoading(false);
+          }
+          return;
+        }
+        
         // Smart contract uses tokenId = nextId++ (not fid = tokenId)
         // First, try to fetch metadata using tokenId directly
-        let metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenId)}`);
+        let metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
+        console.log("[NFTViewClient] Metadata response status:", metadataResponse.status);
         
         // If not found, try using tokenId as FID to find the actual tokenId
         // (in case user entered FID instead of tokenId in URL)
         if (!metadataResponse.ok && metadataResponse.status === 404) {
+          console.log("[NFTViewClient] Metadata not found with tokenId, trying to find by FID...");
           // Try fetching by FID to get the actual tokenId
-          const fidResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(tokenId)}`);
+          const fidResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(tokenIdStr)}`);
           if (fidResponse.ok) {
             const fidData = await fidResponse.json();
-            if (fidData.tokenId && fidData.tokenId !== tokenId) {
+            console.log("[NFTViewClient] Found NFT by FID:", fidData);
+            if (fidData.tokenId && fidData.tokenId !== tokenIdStr) {
               // Found different tokenId, fetch metadata using the actual tokenId
+              console.log("[NFTViewClient] Using actual tokenId from FID lookup:", fidData.tokenId);
               metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(fidData.tokenId)}`);
+            } else if (fidData.tokenId === tokenIdStr) {
+              // Same tokenId, but metadata fetch failed - might be a timing issue
+              console.warn("[NFTViewClient] TokenId matches but metadata fetch failed, retrying...");
+              // Retry once
+              await new Promise(resolve => setTimeout(resolve, 500));
+              metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
             }
           }
         }
