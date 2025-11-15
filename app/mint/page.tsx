@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -28,6 +29,8 @@ export default function MintPage() {
   const [isLoadingNFT, setIsLoadingNFT] = useState(false);
   const [isSignedOut, setIsSignedOut] = useState(false);
   const [tokenIdError, setTokenIdError] = useState<string | null>(null);
+  const [showSignInSuccess, setShowSignInSuccess] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   // Helper function to check if error is user rejection
   const isUserRejected = (errorMessage: string): boolean => {
@@ -197,6 +200,8 @@ export default function MintPage() {
         setIsSignedIn(true);
         setSignInError(null);
         setIsSignedOut(false); // Clear sign out flag when signing in
+        setIsFadingOut(false); // Reset fade out state
+        setShowSignInSuccess(true); // Show success message
         console.log("User signed in successfully:", verifyData.user);
         
         // Clear sign out flag from localStorage
@@ -230,6 +235,27 @@ export default function MintPage() {
       setIsSigningIn(false);
     }
   };
+
+  // Fade out sign in success message after 3 seconds
+  useEffect(() => {
+    if (showSignInSuccess) {
+      // Start fade out after 3 seconds
+      const fadeTimer = setTimeout(() => {
+        setIsFadingOut(true);
+      }, 3000);
+
+      // Remove element after fade out animation completes (500ms)
+      const removeTimer = setTimeout(() => {
+        setShowSignInSuccess(false);
+        setIsFadingOut(false);
+      }, 3500); // 3000ms delay + 500ms fade animation
+
+      return () => {
+        clearTimeout(fadeTimer);
+        clearTimeout(removeTimer);
+      };
+    }
+  }, [showSignInSuccess]);
 
   // Check if FID has already been minted
   // Contract address: 0xBc3BB4918D53E11B29920FD339cce8781a45ABf4
@@ -1071,7 +1097,7 @@ export default function MintPage() {
           </div>
         )}
         {!fid ? (
-          <div className="p-8 rounded-full shadow-lg">
+          <div className="p-8 ">
             <div className="text-center">
               {!isSignedIn && (
                 <div>
@@ -1095,7 +1121,7 @@ export default function MintPage() {
                       }
                     }}
                   >
-                    {isSigningIn ? "Signing in..." : "🔐 Sign In with Farcaster"}
+                    {isSigningIn ? "Signing in..." : "Sign In"}
                   </button>
                   {signInError && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-full">
@@ -1178,8 +1204,13 @@ export default function MintPage() {
             )}
 
             {/* Sign In Status (hidden when not signed in) */}
-            {isSignedIn && (
-              <div className="w-full p-3 bg-green-50 border border-green-200 rounded-full">
+            {showSignInSuccess && (
+              <div 
+                className="w-full p-3 bg-green-50 border border-green-200 rounded-full transition-opacity duration-500 ease-in-out"
+                style={{
+                  opacity: isFadingOut ? 0 : 1,
+                }}
+              >
                 <p className="text-sm text-green-700 text-center">
                   ✅ Signed in with Farcaster (FID: {fid})
                 </p>
@@ -1206,7 +1237,7 @@ export default function MintPage() {
                     <>
                       <div className="text-center">
                         {/* ดึง name มาจาก metadata (เช่น pinata) */}
-                        <p className="text-sm font-semibold text-gray-700">
+                        <p className="vp_space text-sm font-semibold text-gray-700">
                         {userNFT.name 
                             ? userNFT.name + " (จาก metadata)"  // แสดงว่าดึงมาจาก metadata Pinata
                             : `Farcaster Abtract  #${userNFT.tokenId}`}
@@ -1341,29 +1372,47 @@ export default function MintPage() {
                   // Show Mint button if we have FID (from context or sign in)
                   // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted), show View NFT button instead
                   (mintedTokenId || !!isAlreadyMinted) ? (
-                    <a
-                      href={`/mint/${mintedTokenId || userNFT?.tokenId || fid}`}
-                      className={`h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center ${
-                        !mintedTokenId && !userNFT?.tokenId ? 'opacity-75 cursor-wait' : ''
-                      }`}
-                      style={{
-                        backgroundColor: '#9333ea',
-                        color: '#ffffff',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (mintedTokenId || userNFT?.tokenId) {
-                          e.currentTarget.style.backgroundColor = '#7e22ce';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (mintedTokenId || userNFT?.tokenId) {
-                          e.currentTarget.style.backgroundColor = '#9333ea';
-                        }
-                      }}
-                      title={!mintedTokenId && !userNFT?.tokenId ? "Loading tokenId..." : "View your NFT"}
-                    >
-                      {(!mintedTokenId && !userNFT?.tokenId) ? "Loading..." : "View NFT →"}
-                    </a>
+                    <div className="flex flex-col items-center gap-3">
+                      <a
+                        href={`/mint/${mintedTokenId || userNFT?.tokenId || fid}`}
+                        className={`h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center ${
+                          !mintedTokenId && !userNFT?.tokenId ? 'opacity-75 cursor-wait' : ''
+                        }`}
+                        style={{
+                          backgroundColor: '#9333ea',
+                          color: '#ffffff',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (mintedTokenId || userNFT?.tokenId) {
+                            e.currentTarget.style.backgroundColor = '#7e22ce';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (mintedTokenId || userNFT?.tokenId) {
+                            e.currentTarget.style.backgroundColor = '#9333ea';
+                          }
+                        }}
+                        title={!mintedTokenId && !userNFT?.tokenId ? "Loading tokenId..." : "View your NFT"}
+                      >
+                        {(!mintedTokenId && !userNFT?.tokenId) ? "Loading..." : "View NFT →"}
+                      </a>
+                      <Link
+                        href="/gallery"
+                        className="h-12 w-48 max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center"
+                        style={{
+                          backgroundColor: '#6366f1',
+                          color: '#ffffff',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#4f46e5';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#6366f1';
+                        }}
+                      >
+                        View Gallery →
+                      </Link>
+                    </div>
                   ) : (
                     <button
                       onClick={handleMint}
