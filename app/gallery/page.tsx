@@ -210,18 +210,18 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
   }, [nft.tokenId, fid]);
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700">
+    <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
       <div className="p-4 sm:p-6">
         {/* Header with Token ID and FID */}
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-            <h2 className="text-lg sm:text-xl font-bold text-white">
-              Token ID: <span className="text-blue-400">#{nft.tokenId}</span>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+              Token ID: <span className="text-blue-600">#{nft.tokenId}</span>
             </h2>
             {fid && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">FID:</span>
-                <span className="text-sm font-semibold text-purple-400 bg-purple-900/30 px-2 py-1 rounded">
+                <span className="text-sm text-gray-600">FID:</span>
+                <span className="text-sm font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-200">
                   {fid}
                 </span>
               </div>
@@ -230,7 +230,7 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           
           {/* Farcaster User Info */}
           {farcasterUser && (
-            <div className="mb-3 p-3 bg-purple-900/20 rounded-lg border border-purple-700/30">
+            <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
               <div className="flex items-center gap-2 sm:gap-3">
                 {farcasterUser.avatarUrl && (
                   <Image 
@@ -243,22 +243,22 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
                   />
                 )}
                 <div>
-                  <h4 className="text-sm sm:text-base font-semibold text-purple-300">
+                  <h4 className="text-sm sm:text-base font-semibold text-purple-900">
                     {farcasterUser.displayName || farcasterUser.username || `FID: ${fid}`}
                   </h4>
                   {farcasterUser.username && (
-                    <p className="text-xs sm:text-sm text-purple-400">@{farcasterUser.username}</p>
+                    <p className="text-xs sm:text-sm text-purple-600">@{farcasterUser.username}</p>
                   )}
                 </div>
               </div>
             </div>
           )}
           
-          <h3 className="text-base sm:text-lg font-semibold text-gray-300 mb-2">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
             {metadata?.name || nft.name || `NFT #${nft.tokenId}`}
           </h3>
           {metadata?.description && (
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               {metadata.description}
             </p>
           )}
@@ -266,7 +266,7 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
 
         {/* Canvas */}
         <div className="flex justify-center mb-4">
-          <div className="w-full max-w-md relative bg-black rounded-lg p-2">
+          <div className="w-full max-w-md relative bg-gray-100 rounded-lg p-2">
             <canvas
               ref={canvasRef}
               className="w-full h-full object-contain rounded-lg"
@@ -283,12 +283,12 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
         <div className="text-left">
           {metadata?.attributes && metadata.attributes.length > 0 && (
             <div className="mb-4">
-              <h3 className="text-sm sm:text-base font-semibold mb-2 text-gray-300">Attributes:</h3>
+              <h3 className="text-sm sm:text-base font-semibold mb-2 text-gray-900">Attributes:</h3>
               <div className="flex flex-wrap gap-2">
                 {metadata.attributes.map((attr, idx) => (
                   <div 
                     key={idx}
-                    className="bg-gray-700 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm text-gray-200"
+                    className="bg-gray-100 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm text-gray-900 border border-gray-200"
                   >
                     <span className="font-semibold">{attr.trait_type}:</span>{" "}
                     <span>{attr.value}</span>
@@ -299,19 +299,19 @@ function NFTGalleryItem({ nft }: { nft: NFT }) {
           )}
 
           {/* View Details Button */}
-          <div className="mt-4 text-white ">
+          <div className="mt-4">
             {!nft.tokenId || !/^\d+$/.test(String(nft.tokenId).trim()) ? (
-              <div className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-gray-500 text-white rounded-lg cursor-not-allowed text-center text-sm sm:text-base">
+              <div className="h-8 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed text-sm sm:text-base">
                 Invalid Token ID
               </div>
             ) : nftExists === false ? (
-              <div className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-500 text-white rounded-lg cursor-not-allowed text-center text-sm sm:text-base">
+              <div className="h-8 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-100 text-red-700 rounded-lg cursor-not-allowed text-sm sm:text-base border border-red-200">
                 NFT Not Found
               </div>
             ) : (
               <Link
                 href={`/mint/${String(nft.tokenId).trim()}`}
-                className="h-8 inline-block w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center text-sm sm:text-base"
+                className="h-8 inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
               >
                 View Full Details →
               </Link>
@@ -639,17 +639,17 @@ export default function GalleryPage() {
   };
 
   return (
-    <main className="min-h-screen bg-black p-2 sm:p-4">
+    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-2 sm:p-4">
       <div className="max-w-6xl mx-auto w-full">
         {/* Header */}
         <div className="space_g mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">NFT Gallery</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">NFT Gallery</h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <p className="text-sm sm:text-base text-gray-400">
+              <p className="text-sm sm:text-base text-gray-600">
                 {total > 0 ? (
                   <>
-                    <span className="font-semibold text-white">Total: {total}</span> NFTs
+                    <span className="font-semibold text-gray-900">Total: {total}</span> NFTs
                   </>
                 ) : (
                   "Loading..."
@@ -682,14 +682,14 @@ export default function GalleryPage() {
                   setSearchMetadata(null);
                 }
               }}
-              className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
+              className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-white text-gray-900 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
               disabled={isSearching}
             />
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={isSearching || !searchTerm.trim()}
-                className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 {isSearching ? "Searching..." : "Search"}
               </button>
@@ -704,7 +704,7 @@ export default function GalleryPage() {
                 setSearchResult(null);
                 setSearchMetadata(null);
               }}
-                  className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base"
+                  className="px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base"
                 >
                   Clear
                 </button>
@@ -729,12 +729,12 @@ export default function GalleryPage() {
           const displayFid = fidAttr && fidAttr.value ? String(fidAttr.value) : (searchResult.fid || undefined);
           
           return (
-            <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
+            <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-gray-50 to-white">
               <div className="w-full max-w-2xl text-center">
-                <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 text-white">
+                <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
                   {searchMetadata?.name || searchResult.name || `NFT #${searchResult.tokenId}`}
                 </h1>
-                <p className="text-sm sm:text-base text-gray-400 mb-4 sm:mb-8">
+                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-8">
                   {searchMetadata?.description || `This NFT was minted on ${minikitConfig.miniapp.name}`}
                 </p>
 
@@ -845,7 +845,7 @@ export default function GalleryPage() {
 
                 <Link
                   href={`/mint/${searchResult.tokenId}`}
-                  className="nf_m h-12 w-48 inline-block px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                  className="nf_m h-12 w-48 inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
                 >
                   View Full Page →
                 </Link>
@@ -857,11 +857,11 @@ export default function GalleryPage() {
           /* NFT Grid */
           (isLoading || isSearching) && nfts.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
-              <p className="text-sm sm:text-base text-gray-400">{isSearching ? "Searching..." : "Loading NFTs..."}</p>
+              <p className="text-sm sm:text-base text-gray-600">{isSearching ? "Searching..." : "Loading NFTs..."}</p>
             </div>
           ) : nfts.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
-              <p className="text-sm sm:text-base text-gray-400">No NFTs found</p>
+              <p className="text-sm sm:text-base text-gray-600">No NFTs found</p>
               {searchTerm && (
                 <p className="text-xs sm:text-sm text-gray-500 mt-2">
                   Try searching for a different Token ID or FID
@@ -885,7 +885,7 @@ export default function GalleryPage() {
                   <button
                     onClick={loadMore}
                     disabled={isLoading}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                    className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
                   >
                     {isLoading ? "Loading..." : "Load More"}
                   </button>
