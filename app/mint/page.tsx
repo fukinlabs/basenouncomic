@@ -1373,29 +1373,29 @@ export default function MintPage() {
                   // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted), show View NFT button instead
                   (mintedTokenId || !!isAlreadyMinted) ? (
                     <div className="flex flex-col items-center gap-3">
-                      <a
-                        href={`/mint/${mintedTokenId || userNFT?.tokenId || fid}`}
-                        className={`h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center ${
-                          !mintedTokenId && !userNFT?.tokenId ? 'opacity-75 cursor-wait' : ''
-                        }`}
-                        style={{
-                          backgroundColor: '#9333ea',
-                          color: '#ffffff',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (mintedTokenId || userNFT?.tokenId) {
+                      {/* Show loading state if metadata is still loading */}
+                      {isLoadingNFT || (!mintedTokenId && !userNFT?.tokenId) ? (
+                        <div className="h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full bg-gray-400 text-white cursor-not-allowed font-sans text-lg font-semibold shadow-lg uppercase flex items-center justify-center">
+                          Loading...
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/mint/${mintedTokenId || userNFT?.tokenId || fid}`}
+                          className="h-12 w-48 nf_m max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center"
+                          style={{
+                            backgroundColor: '#9333ea',
+                            color: '#ffffff',
+                          }}
+                          onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = '#7e22ce';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (mintedTokenId || userNFT?.tokenId) {
+                          }}
+                          onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = '#9333ea';
-                          }
-                        }}
-                        title={!mintedTokenId && !userNFT?.tokenId ? "Loading tokenId..." : "View your NFT"}
-                      >
-                        {(!mintedTokenId && !userNFT?.tokenId) ? "Loading..." : "View NFT →"}
-                      </a>
+                          }}
+                        >
+                          View NFT →
+                        </Link>
+                      )}
                       <Link
                         href="/gallery"
                         className="h-12 w-48 max-w-xs px-8 py-4 rounded-full transition-colors font-sans text-lg font-semibold shadow-lg hover:shadow-xl uppercase flex items-center justify-center"
