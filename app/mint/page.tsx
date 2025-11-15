@@ -1237,7 +1237,7 @@ export default function MintPage() {
                     <>
                       <div className="text-center">
                         {/* ดึง name มาจาก metadata (เช่น pinata) */}
-                        <p className="vp_space text-sm font-semibold text-gray-700">
+                        <p className="space_d text-sm font-semibold text-gray-700">
                         {userNFT.name 
                             ? userNFT.name + " (จาก metadata)"  // แสดงว่าดึงมาจาก metadata Pinata
                             : `Farcaster Abtract  #${userNFT.tokenId}`}

@@ -794,9 +794,9 @@ export default function GalleryPage() {
                 </div>
               </div>
 
-              <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-3 sm:space-y-4 text-white ">
                 {/* Share Buttons - Icons in a row */}
-                <div className="flex flex-row gap-3 justify-center items-center">
+                <div className="flex flex-row gap-3 justify-center items-center vp_space">
                   <button
                     onClick={handleShareFarcaster}
                     disabled={isSharing}
