@@ -230,7 +230,12 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           <Link
             href="/mint"
             className="h-12 w-48 nf_m inline-flex items-center justify-center px-6 py-3 bg-action-primary text-white rounded-full hover:opacity-90 transition-opacity font-semibold shadow-lg hover:shadow-xl"
-          >
+            style={{ 
+             color: '#ffffff',
+             }}
+        
+        
+        >
             Go to Mint Page →
           </Link>
         </div>
@@ -325,7 +330,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                   {metadata.attributes.map((attr, idx) => (
                     <div 
                       key={idx}
-                      className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg border border-gray-200"
+                      className="w-38 space_d bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg border border-gray-200"
                     >
                       <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
                         {attr.trait_type}
