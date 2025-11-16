@@ -2,13 +2,20 @@
 # Script to add PINATA_JWT to Vercel environments
 # 
 # SECURITY WARNING: Never commit this file with a real JWT token!
-# This file should be in .gitignore or use environment variables.
+# Copy this file to add-pinata-env.sh and add your JWT token there.
+# Make sure add-pinata-env.sh is in .gitignore
 
 # JWT Token - Get from Pinata Dashboard or environment variable
-# Option 1: Set via environment variable
+# Option 1: Set via environment variable (recommended)
 # JWT_TOKEN="${PINATA_JWT}"
 # Option 2: Set manually (DO NOT COMMIT WITH REAL TOKEN!)
 JWT_TOKEN=""
+
+if [ -z "$JWT_TOKEN" ]; then
+  echo "Error: JWT_TOKEN is empty!"
+  echo "Please set JWT_TOKEN in the script or use environment variable PINATA_JWT"
+  exit 1
+fi
 
 echo "Adding PINATA_JWT to Vercel environments..."
 echo ""
