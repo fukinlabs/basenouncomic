@@ -16,12 +16,40 @@ export async function POST(request: NextRequest) {
   try {
     const { message, signature, nonce } = await request.json();
 
-    if (!message || !signature) {
+    // Validate required fields
+    if (!message || typeof message !== 'string') {
+      console.error("[verify-signin] Missing or invalid message");
       return NextResponse.json(
-        { error: "Missing message or signature" },
+        { error: "Missing or invalid message" },
         { status: 400 }
       );
     }
+
+    if (!signature || typeof signature !== 'string') {
+      console.error("[verify-signin] Missing or invalid signature");
+      return NextResponse.json(
+        { error: "Missing or invalid signature" },
+        { status: 400 }
+      );
+    }
+
+    // Validate signature format (should start with 0x)
+    if (!signature.startsWith('0x')) {
+      console.error("[verify-signin] Invalid signature format (must start with 0x)");
+      return NextResponse.json(
+        { error: "Invalid signature format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate message format (should be SIWE message)
+    if (!message.includes("farcaster.xyz") && !message.includes("Sign in with Farcaster")) {
+      console.warn("[verify-signin] Message may not be a valid Farcaster sign-in message");
+    }
+
+    // Get domain for verification
+    const domain = getUrlHost(request);
+    console.log("[verify-signin] Verifying sign in message with domain:", domain, "nonce:", nonce ? "provided" : "missing");
 
     // Create Farcaster auth client using viemConnector
     // viemConnector handles getFid and isValidAuthAddress automatically
@@ -31,16 +59,28 @@ export async function POST(request: NextRequest) {
 
     // Verify the sign in message
     // Note: verifySignInMessage now supports Auth Addresses (v0.7.0+)
+    // Type assertion: signature is validated to start with 0x above
     const result = await client.verifySignInMessage({
       message,
-      signature,
-      domain: getUrlHost(request),
+      signature: signature as `0x${string}`,
+      domain,
       nonce, // Optional: verify nonce to prevent replay attacks
     });
 
     if (result.isError) {
+      console.error("[verify-signin] Signature verification failed:", {
+        error: result.error,
+        domain,
+        hasMessage: !!message,
+        hasSignature: !!signature,
+        hasNonce: !!nonce
+      });
       return NextResponse.json(
-        { error: "Invalid signature", details: result.error?.message },
+        { 
+          error: "Invalid signature", 
+          details: result.error?.message || "Signature verification failed",
+          domain 
+        },
         { status: 401 }
       );
     }
@@ -49,6 +89,12 @@ export async function POST(request: NextRequest) {
     // result has fid (from FarcasterResourceParams) and data.address (from SiweMessage)
     const fid = result.fid;
     const address = result.data.address;
+
+    console.log("[verify-signin] Sign in successful:", {
+      fid: fid.toString(),
+      address,
+      domain
+    });
 
     return NextResponse.json({
       success: true,
@@ -75,25 +121,45 @@ function getUrlHost(request: NextRequest): string {
   if (origin) {
     try {
       const url = new URL(origin);
+      console.log("[verify-signin] Using origin host:", url.host);
       return url.host;
     } catch (error) {
-      console.warn("Invalid origin header:", origin, error);
+      console.warn("[verify-signin] Invalid origin header:", origin, error);
     }
   }
 
   const host = request.headers.get("host");
-  if (host) return host;
+  if (host) {
+    console.log("[verify-signin] Using request host:", host);
+    return host;
+  }
 
+  // Priority: NEXT_PUBLIC_ROOT_URL > NEXT_PUBLIC_URL > VERCEL_URL > default
   let urlValue: string;
-  if (process.env.VERCEL_ENV === "production") {
-    urlValue = process.env.NEXT_PUBLIC_URL!;
+  if (process.env.NEXT_PUBLIC_ROOT_URL) {
+    urlValue = process.env.NEXT_PUBLIC_ROOT_URL;
+  } else if (process.env.NEXT_PUBLIC_URL) {
+    urlValue = process.env.NEXT_PUBLIC_URL;
+  } else if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_URL) {
+    urlValue = `https://${process.env.VERCEL_URL}`;
   } else if (process.env.VERCEL_URL) {
     urlValue = `https://${process.env.VERCEL_URL}`;
   } else {
-    urlValue = "http://localhost:3000";
+    urlValue = "https://farcasterabstact.wtf"; // Default to production domain
   }
 
-  const url = new URL(urlValue);
-  return url.host;
+  try {
+    const url = new URL(urlValue);
+    console.log("[verify-signin] Using fallback host:", url.host);
+    return url.host;
+  } catch (error) {
+    console.error("[verify-signin] Error parsing URL:", urlValue, error);
+    // Fallback to extracting host from string if URL parsing fails
+    const hostMatch = urlValue.match(/https?:\/\/([^\/]+)/);
+    if (hostMatch && hostMatch[1]) {
+      return hostMatch[1];
+    }
+    return "farcasterabstact.wtf"; // Final fallback
+  }
 }
 

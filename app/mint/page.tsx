@@ -163,9 +163,11 @@ export default function MintPage() {
   const handleSignIn = async () => {
     setIsSigningIn(true);
     setSignInError(null); // Clear previous errors
+    console.log("[Mint] Starting Farcaster sign in...");
     try {
       // Generate a random nonce (at least 8 alphanumeric characters)
       const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      console.log("[Mint] Generated nonce:", nonce);
       
       // Request Sign In with Farcaster credential
       const result = await sdk.actions.signIn({
@@ -173,7 +175,11 @@ export default function MintPage() {
         acceptAuthAddress: true, // Support Auth Addresses for better UX
       });
 
-      console.log("Sign In result:", result);
+      console.log("[Mint] Sign In result:", {
+        hasMessage: !!result.message,
+        hasSignature: !!result.signature,
+        messageLength: result.message?.length || 0
+      });
 
       // Verify the message on server
       const verifyResponse = await fetch("/api/verify-signin", {
@@ -189,8 +195,14 @@ export default function MintPage() {
       });
 
       if (!verifyResponse.ok) {
-        const error = await verifyResponse.json();
-        throw new Error(error.error || "Failed to verify sign in");
+        const errorData = await verifyResponse.json().catch(() => ({ error: "Unknown error" }));
+        const errorMessage = errorData.error || errorData.details || `Failed to verify sign in (${verifyResponse.status})`;
+        console.error("[Mint] Sign in verification failed:", {
+          status: verifyResponse.status,
+          error: errorData,
+          message: errorMessage
+        });
+        throw new Error(errorMessage);
       }
 
       const verifyData = await verifyResponse.json();
