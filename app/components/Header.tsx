@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 
@@ -38,26 +39,16 @@ export default function Header() {
       const storedFid = localStorage.getItem("farcaster_fid");
       const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
       
-      // Only update state if values actually changed to prevent unnecessary re-renders
-      if (signedOut && !isSignedOut) {
+      console.log("[Header] Storage change detected:", { signedIn, storedFid, signedOut });
+      
+      if (signedOut) {
         setIsSignedOut(true);
         setFid("");
         setFarcasterUser(null);
-        console.log("[Header] Sign out detected");
-      } else if (!signedOut && isSignedOut) {
-        setIsSignedOut(false);
-        console.log("[Header] Sign out cleared");
-      }
-      
-      if (signedIn && storedFid && storedFid !== fid) {
+      } else if (signedIn && storedFid) {
         setIsSignedOut(false);
         setFid(storedFid);
         console.log("[Header] Updated FID from localStorage:", storedFid);
-      } else if (!signedIn && fid) {
-        // Clear FID if signed in flag is removed
-        setFid("");
-        setFarcasterUser(null);
-        console.log("[Header] Sign in cleared");
       }
     };
 
@@ -66,10 +57,9 @@ export default function Header() {
     
     // Listen for custom event (same-tab updates)
     window.addEventListener("farcaster-signin", handleStorageChange);
-    window.addEventListener("farcaster-signout", handleStorageChange);
     
-    // Check on interval for same-tab updates (fallback) - reduced frequency to prevent excessive checks
-    const interval = setInterval(handleStorageChange, 2000); // Increased to 2 seconds to reduce checks
+    // Also check on interval for same-tab updates (fallback)
+    const interval = setInterval(handleStorageChange, 300); // Reduced to 300ms for faster updates
     
     // Check immediately on mount
     handleStorageChange();
@@ -77,10 +67,9 @@ export default function Header() {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("farcaster-signin", handleStorageChange);
-      window.removeEventListener("farcaster-signout", handleStorageChange);
       clearInterval(interval);
     };
-  }, [isSignedOut, fid]); // Add dependencies to prevent stale closures
+  }, []);
 
   // Get FID from SDK context automatically (if not signed out and not already have FID from localStorage)
   useEffect(() => {
@@ -217,7 +206,7 @@ export default function Header() {
   return (
     <>
       {/* Farcaster User Profile - Top Right (Show if we have FID and not signed out) */}
-      {!isSignedOut && fid && (
+      {!isSignedOut && fid ? (
         <div className="fixed top-4 right-4 z-50" style={{ paddingRight: '5px' }} >
           <div 
             className="flex items-center gap-3 bg-purple-600 rounded-full px-5 py-3 border border-wrap-700 cursor-pointer hover:bg-wrap-700 transition-colors shadow-lg"
@@ -273,6 +262,25 @@ export default function Header() {
               </div>
             </>
           )}
+        </div>
+      ) : (
+        /* Sign In Button - Show when user is not logged in */
+        <div className="fixed top-4 right-4 z-50" style={{ paddingRight: '5px' }}>
+          <Link
+            href="/mint"
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full px-5 py-3 border border-purple-700 transition-colors shadow-lg font-semibold"
+          >
+            <svg 
+              className="w-5 h-5"
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+            </svg>
+            <span>Sign In</span>
+          </Link>
         </div>
       )}
     </>

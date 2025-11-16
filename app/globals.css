@@ -86,5 +86,6 @@ a {
 .bg-wrap-700 { background-color: var(--color-wrap-700); }
 .bg-wrap-800 { background-color: var(--color-wrap-800); }
 .bg-wrap-900 { background-color: var(--color-wrap-900); }
+ .w-28 { width: calc(var(--spacing)*28) }  
  .w-38 { width: calc(var(--spacing)*38) }  
  .w-15 { width: calc(var(--spacing)*15) }
