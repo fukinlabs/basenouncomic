@@ -7,7 +7,7 @@
 3. ไปที่ **Settings** → **Environment Variables**
 4. เพิ่มตัวแปร:
    - **Name**: `PINATA_JWT`
-   - **Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI4NWYxYjQxZC1mNjNiLTQ2NzAtOTkwNi00MTI5YTEzY2UxODMiLCJlbWFpbCI6ImZ1a2lubGFic0BnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiMzJiZjIxYzk4ZDY5YjMzN2YwMzEiLCJzY29wZWRLZXlTZWNyZXQiOiIzNGYwMTk5NTQxMDQwOGEzNzc5NTJlMjdhZjYyOTIzYzQ1MmVlZTI4NjYzNGVmN2IwMWFmYmFiYTQzM2U4OTY3IiwiZXhwIjoxNzk0MTI5MTM2fQ.NEmeTYEsGp3PMywEyCc_SWIHmGTgYJH62tPJOYunp8k`
+   - **Value**: `your_pinata_jwt_token_here` (ได้จาก Pinata Dashboard → API Keys → Create JWT)
    - **Environment**: เลือก Production, Preview, Development (หรือเลือกทั้งหมด)
    - คลิก **Save**
 5. **Redeploy**: ไปที่ **Deployments** → เลือก deployment ล่าสุด → คลิก **"..."** → **Redeploy**
@@ -23,7 +23,7 @@ vercel env add PINATA_JWT production preview development
 ```
 
 เมื่อรันคำสั่ง Vercel จะถามให้ใส่ value:
-- วาง JWT token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+- วาง JWT token ของคุณ (ได้จาก Pinata Dashboard → API Keys → Create JWT)
 - กด Enter
 
 ## วิธีที่ 3: ใช้ไฟล์ .env (สำหรับ Local Development เท่านั้น)
@@ -31,8 +31,13 @@ vercel env add PINATA_JWT production preview development
 สร้างไฟล์ `.env.local` ในโปรเจกต์:
 
 ```bash
-PINATA_JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI4NWYxYjQxZC1mNjNiLTQ2NzAtOTkwNi00MTI5YTEzY2UxODMiLCJlbWFpbCI6ImZ1a2lubGFic0BnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiMzJiZjIxYzk4ZDY5YjMzN2YwMzEiLCJzY29wZWRLZXlTZWNyZXQiOiIzNGYwMTk5NTQxMDQwOGEzNzc5NTJlMjdhZjYyOTIzYzQ1MmVlZTI4NjYzNGVmN2IwMWFmYmFiYTQzM2U4OTY3IiwiZXhwIjoxNzk0MTI5MTM2fQ.NEmeTYEsGp3PMywEyCc_SWIHmGTgYJH62tPJOYunp8k
+PINATA_JWT=your_pinata_jwt_token_here
 ```
+
+**⚠️ SECURITY WARNING:** 
+- อย่า commit JWT token จริงลงในไฟล์ `.env.local` 
+- ไฟล์ `.env.local` ควรอยู่ใน `.gitignore` แล้ว
+- ใช้ JWT token จาก Pinata Dashboard เท่านั้น
 
 **⚠️ หมายเหตุ:** ไฟล์ `.env.local` ใช้สำหรับ local development เท่านั้น และจะไม่ถูก commit ไปที่ GitHub (ควรอยู่ใน `.gitignore`)
 
