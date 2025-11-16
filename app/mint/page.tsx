@@ -101,14 +101,17 @@ export default function MintPage() {
   useEffect(() => {
     const checkSignOut = () => {
       const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
-      if (signedOut) {
+      // Only update state if value actually changed to prevent unnecessary re-renders
+      if (signedOut && !isSignedOut) {
         setIsSignedOut(true);
         // Clear sign in state when signed out
         setIsSignedIn(false);
         setFid(""); // Clear FID to show Sign In button
         setSignInAddress(null); // Clear address from Sign In
-      } else {
+        console.log("[Mint] Sign out detected");
+      } else if (!signedOut && isSignedOut) {
         setIsSignedOut(false);
+        console.log("[Mint] Sign out cleared");
       }
     };
 
@@ -119,15 +122,15 @@ export default function MintPage() {
     window.addEventListener("storage", checkSignOut);
     window.addEventListener("farcaster-signout", checkSignOut);
     
-    // Also check on interval for same-tab updates
-    const interval = setInterval(checkSignOut, 300);
+    // Check on interval for same-tab updates - reduced frequency to prevent excessive checks
+    const interval = setInterval(checkSignOut, 2000); // Increased to 2 seconds to reduce checks
     
     return () => {
       window.removeEventListener("storage", checkSignOut);
       window.removeEventListener("farcaster-signout", checkSignOut);
       clearInterval(interval);
     };
-  }, []);
+  }, [isSignedOut]); // Add dependency to prevent stale closures
 
   // Get FID and user data from SDK context automatically (following Farcaster SDK Context docs)
   // https://miniapps.farcaster.xyz/docs/sdk/context#user

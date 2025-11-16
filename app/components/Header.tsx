@@ -38,16 +38,26 @@ export default function Header() {
       const storedFid = localStorage.getItem("farcaster_fid");
       const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
       
-      console.log("[Header] Storage change detected:", { signedIn, storedFid, signedOut });
-      
-      if (signedOut) {
+      // Only update state if values actually changed to prevent unnecessary re-renders
+      if (signedOut && !isSignedOut) {
         setIsSignedOut(true);
         setFid("");
         setFarcasterUser(null);
-      } else if (signedIn && storedFid) {
+        console.log("[Header] Sign out detected");
+      } else if (!signedOut && isSignedOut) {
+        setIsSignedOut(false);
+        console.log("[Header] Sign out cleared");
+      }
+      
+      if (signedIn && storedFid && storedFid !== fid) {
         setIsSignedOut(false);
         setFid(storedFid);
         console.log("[Header] Updated FID from localStorage:", storedFid);
+      } else if (!signedIn && fid) {
+        // Clear FID if signed in flag is removed
+        setFid("");
+        setFarcasterUser(null);
+        console.log("[Header] Sign in cleared");
       }
     };
 
@@ -56,9 +66,10 @@ export default function Header() {
     
     // Listen for custom event (same-tab updates)
     window.addEventListener("farcaster-signin", handleStorageChange);
+    window.addEventListener("farcaster-signout", handleStorageChange);
     
-    // Also check on interval for same-tab updates (fallback)
-    const interval = setInterval(handleStorageChange, 300); // Reduced to 300ms for faster updates
+    // Check on interval for same-tab updates (fallback) - reduced frequency to prevent excessive checks
+    const interval = setInterval(handleStorageChange, 2000); // Increased to 2 seconds to reduce checks
     
     // Check immediately on mount
     handleStorageChange();
@@ -66,9 +77,10 @@ export default function Header() {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("farcaster-signin", handleStorageChange);
+      window.removeEventListener("farcaster-signout", handleStorageChange);
       clearInterval(interval);
     };
-  }, []);
+  }, [isSignedOut, fid]); // Add dependencies to prevent stale closures
 
   // Get FID from SDK context automatically (if not signed out and not already have FID from localStorage)
   useEffect(() => {
