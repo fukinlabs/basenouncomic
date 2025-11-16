@@ -1,7 +1,11 @@
 import { Metadata } from "next";
 import { minikitConfig } from "../../minikit.config";
 
-const ROOT_URL = process.env.NEXT_PUBLIC_ROOT_URL || "http://localhost:3000";
+// Use same ROOT_URL logic as minikit.config.ts for consistency
+const ROOT_URL =
+  process.env.NEXT_PUBLIC_ROOT_URL ||
+  process.env.NEXT_PUBLIC_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://farcasterabstact.wtf');
 
 // Create MiniApp embed for the mint page
 const miniappEmbed = {

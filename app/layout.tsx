@@ -6,8 +6,11 @@ import { RootProvider } from "./rootProvider";
 import { minikitConfig } from "../minikit.config";
 import Header from "./components/Header";
 
-const ROOT_URL = process.env.NEXT_PUBLIC_URL || 
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
+// Use same ROOT_URL logic as minikit.config.ts for consistency
+const ROOT_URL =
+  process.env.NEXT_PUBLIC_ROOT_URL ||
+  process.env.NEXT_PUBLIC_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://farcasterabstact.wtf');
 
 // Create MiniApp embed for the home page according to Farcaster docs
 const miniappEmbed = {

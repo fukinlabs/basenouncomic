@@ -1,9 +1,11 @@
 import { Metadata } from "next";
 import { minikitConfig } from "../../../minikit.config";
 
-// Get ROOT_URL from env or use Vercel URL as fallback
-const ROOT_URL = process.env.NEXT_PUBLIC_ROOT_URL || 
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+// Use same ROOT_URL logic as minikit.config.ts for consistency
+const ROOT_URL =
+  process.env.NEXT_PUBLIC_ROOT_URL ||
+  process.env.NEXT_PUBLIC_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://farcasterabstact.wtf');
 
 // Generate metadata with embed tags for sharing
 export async function generateMetadata({

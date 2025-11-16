@@ -89,11 +89,43 @@ export default function MintPage() {
     }
   }, [isInterfaceReady, hasCalledReady]);
 
-  // Load address from localStorage on mount
+  // Load sign in status and address from localStorage on mount
   useEffect(() => {
+    // Check sign in status first
+    const signedIn = localStorage.getItem("farcaster_signed_in") === "true";
+    const storedFid = localStorage.getItem("farcaster_fid");
     const storedAddress = localStorage.getItem("farcaster_address");
-    if (storedAddress) {
-      setSignInAddress(storedAddress);
+    const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
+    
+    console.log("[Mint] Checking localStorage on mount:", {
+      signedIn,
+      storedFid,
+      storedAddress,
+      signedOut
+    });
+    
+    // If user has signed out, don't restore sign in state
+    if (signedOut) {
+      setIsSignedOut(true);
+      setIsSignedIn(false);
+      setFid("");
+      setSignInAddress(null);
+      console.log("[Mint] User is signed out, not restoring sign in state");
+      return;
+    }
+    
+    // If user has signed in before, restore sign in state
+    if (signedIn && storedFid) {
+      setIsSignedIn(true);
+      setIsSignedOut(false);
+      setFid(storedFid);
+      if (storedAddress) {
+        setSignInAddress(storedAddress);
+      }
+      console.log("[Mint] Restored sign in state from localStorage:", {
+        fid: storedFid,
+        address: storedAddress
+      });
     }
   }, []);
 

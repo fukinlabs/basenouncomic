@@ -246,8 +246,9 @@ export default function Header() {
               <div 
                 className="fixed inset-0 z-40"
                 onClick={() => setShowUserMenu(false)}
+                style={{ pointerEvents: 'auto' }}
               />
-              <div className="absolute top-full right-0 mt-2 w-28 h-8 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+              <div className="absolute top-full right-0 mt-2 w-28 h-8 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden" style={{ pointerEvents: 'auto' }}>
                 <div className="p-1">
                   <button
                     onClick={handleSignOut}
