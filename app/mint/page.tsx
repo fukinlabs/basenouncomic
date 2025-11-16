@@ -140,7 +140,11 @@ export default function MintPage() {
         setIsSignedIn(false);
         setFid(""); // Clear FID to show Sign In button
         setSignInAddress(null); // Clear address from Sign In
-        console.log("[Mint] Sign out detected");
+        setUserNFT(null); // Clear user NFT data
+        setIsAlreadyMinted(null); // Reset minted status
+        setMintedTokenId(null); // Clear minted token ID
+        setIsLoadingNFT(false); // Reset loading state
+        console.log("[Mint] Sign out detected - cleared all user data");
       } else if (!signedOut && isSignedOut) {
         setIsSignedOut(false);
         console.log("[Mint] Sign out cleared");

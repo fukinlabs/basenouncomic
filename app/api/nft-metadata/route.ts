@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // TokenURI is a URL (IPFS or HTTP) - fetch it with retry and fallback gateways
-      let metadataUrl = tokenURI;
+      const metadataUrl = tokenURI;
       let ipfsHash: string | null = null;
       
       if (tokenURI.startsWith("ipfs://")) {
@@ -203,11 +203,6 @@ export async function GET(request: NextRequest) {
             
             // Continue to next URL or retry
             continue;
-          }
-          
-          // If we got a successful response, break out of URL loop
-          if (metadataResponse && metadataResponse.ok) {
-            break;
           }
         }
         
