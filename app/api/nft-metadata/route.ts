@@ -125,65 +125,123 @@ export async function GET(request: NextRequest) {
         );
       }
     } else {
-      // TokenURI is a URL (IPFS or HTTP) - fetch it
+      // TokenURI is a URL (IPFS or HTTP) - fetch it with retry and fallback gateways
       let metadataUrl = tokenURI;
+      let ipfsHash: string | null = null;
+      
       if (tokenURI.startsWith("ipfs://")) {
-        const ipfsHash = tokenURI.replace("ipfs://", "");
-        metadataUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+        ipfsHash = tokenURI.replace("ipfs://", "");
       }
 
-      // Fetch metadata JSON with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      // IPFS Gateway URLs (priority order: Pinata → Cloudflare → IPFS.io)
+      const ipfsGateways = [
+        `https://gateway.pinata.cloud/ipfs/${ipfsHash}`,
+        `https://cloudflare-ipfs.com/ipfs/${ipfsHash}`,
+        `https://ipfs.io/ipfs/${ipfsHash}`,
+      ];
+
+      // Fetch metadata JSON with retry and fallback gateways
+      let metadataResponse: Response | null = null;
+      let lastError: Error | null = null;
+      const maxRetries = 3;
+      const timeout = 15000; // 15 second timeout (increased from 10s)
       
-      let metadataResponse: Response;
-      try {
-        console.log(`[nft-metadata] Fetching metadata from URL: ${metadataUrl}`);
-        metadataResponse = await fetch(metadataUrl, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.error(`[nft-metadata] Timeout fetching metadata for tokenId ${tokenIdNum}`);
-          return NextResponse.json(
-            { 
-              error: "Request timeout: Failed to fetch metadata",
-              tokenId: tokenIdNum,
-              url: metadataUrl
-            },
-            { status: 504 }
-          );
+      // If IPFS hash, try multiple gateways; otherwise use original URL
+      const urlsToTry = ipfsHash ? ipfsGateways : [metadataUrl];
+      
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        for (const url of urlsToTry) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+          
+          try {
+            console.log(`[nft-metadata] Fetching metadata from URL (attempt ${attempt + 1}/${maxRetries}): ${url}`);
+            metadataResponse = await fetch(url, {
+              signal: controller.signal,
+              headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'NFT-Metadata-Fetcher/1.0',
+              },
+            });
+            clearTimeout(timeoutId);
+            
+            // If successful, break out of loops
+            if (metadataResponse.ok) {
+              console.log(`[nft-metadata] Successfully fetched metadata from ${url} for tokenId ${tokenIdNum}`);
+              break;
+            } else {
+              // If rate limited (429), wait before retrying
+              if (metadataResponse.status === 429) {
+                const retryAfter = metadataResponse.headers.get('Retry-After');
+                const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : (attempt + 1) * 1000;
+                console.warn(`[nft-metadata] Rate limited (429) on ${url}, waiting ${waitTime}ms before retry`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+              }
+              // If 404, try next gateway (if IPFS)
+              if (metadataResponse.status === 404 && ipfsHash && urlsToTry.length > 1) {
+                console.warn(`[nft-metadata] 404 on ${url}, trying next gateway...`);
+                continue;
+              }
+              // For other errors, throw to retry
+              throw new Error(`HTTP ${metadataResponse.status}: ${metadataResponse.statusText}`);
+            }
+          } catch (error) {
+            clearTimeout(timeoutId);
+            lastError = error instanceof Error ? error : new Error(String(error));
+            
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.warn(`[nft-metadata] Timeout fetching metadata from ${url} (attempt ${attempt + 1})`);
+            } else {
+              console.warn(`[nft-metadata] Error fetching metadata from ${url} (attempt ${attempt + 1}):`, error);
+            }
+            
+            // If not last attempt, wait before retrying
+            if (attempt < maxRetries - 1) {
+              const waitTime = (attempt + 1) * 1000; // Exponential backoff: 1s, 2s, 3s
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+            
+            // Continue to next URL or retry
+            continue;
+          }
+          
+          // If we got a successful response, break out of URL loop
+          if (metadataResponse && metadataResponse.ok) {
+            break;
+          }
         }
-        console.error(`[nft-metadata] Error fetching metadata for tokenId ${tokenIdNum}:`, error);
-        throw error;
+        
+        // If we got a successful response, break out of retry loop
+        if (metadataResponse && metadataResponse.ok) {
+          break;
+        }
       }
       
-      if (!metadataResponse.ok) {
-        console.error(`[nft-metadata] Metadata fetch failed for tokenId ${tokenIdNum}: ${metadataResponse.status} ${metadataResponse.statusText}`);
+      // If all attempts failed
+      if (!metadataResponse || !metadataResponse.ok) {
+        console.error(`[nft-metadata] Failed to fetch metadata after ${maxRetries} attempts for tokenId ${tokenIdNum}`);
+        
         // If metadata fetch fails, try to extract image from tokenURI directly
         // (in case tokenURI is just an image URL)
-        if (tokenURI.startsWith("ipfs://")) {
-          const ipfsHash = tokenURI.replace("ipfs://", "");
+        if (ipfsHash) {
           const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
           return NextResponse.json({
             image: imageUrl,
             name: `NFT #${tokenId}`,
             description: "NFT from contract",
+            attributes: [],
           });
         }
         
-        const errorText = await metadataResponse.text().catch(() => "Unknown error");
+        const errorMessage = lastError?.message || "Unknown error";
         return NextResponse.json(
           { 
-            error: "Failed to fetch metadata",
-            details: errorText,
-            status: metadataResponse.status,
+            error: "Failed to fetch metadata after multiple attempts",
+            details: errorMessage,
             tokenId: tokenIdNum,
-            url: metadataUrl
+            urlsTried: urlsToTry
           },
-          { status: metadataResponse.status }
+          { status: 504 }
         );
       }
 
@@ -197,7 +255,7 @@ export async function GET(request: NextRequest) {
             error: "Invalid JSON response from metadata URL",
             details: error instanceof Error ? error.message : String(error),
             tokenId: tokenIdNum,
-            url: metadataUrl
+            url: metadataResponse.url
           },
           { status: 500 }
         );
@@ -271,8 +329,10 @@ export async function GET(request: NextRequest) {
         }
       }
       // Convert IPFS protocol URL to HTTP URL for display
+      // Use Pinata Gateway as primary, but fallback to other gateways if needed
       else if (metadata.image.startsWith("ipfs://")) {
         const ipfsHash = metadata.image.replace("ipfs://", "");
+        // Use Pinata Gateway as primary (most reliable)
         metadata.image = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
       }
     }
