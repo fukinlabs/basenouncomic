@@ -12,7 +12,7 @@ export const minikitConfig = {
   miniapp: {
     version: "1",
     name: "Farcaster Abstract P5",
-     subtitle: "P5js AI Nouns Companion", 
+     subtitle: "AI Nouns Companion for P5js", 
     description: "AI Generative Nouns Companion",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
     iconUrl: `${ROOT_URL}/splash.png`,
@@ -23,9 +23,9 @@ export const minikitConfig = {
     primaryCategory: "art-creativity",
     tags: ["art", "ai", "generative", "nft"],
     heroImageUrl: `${ROOT_URL}/blue-hero.png`, 
-    tagline: "",
-    ogTitle: "",
-    ogDescription: "",
+    tagline: "AI Generative Art Companion",
+    ogTitle: "Farcaster Abstract P5 - AI Art",
+    ogDescription: "Create generative AI art with Nouns companion",
     ogImageUrl: `${ROOT_URL}/blue-hero.png`,
   },
 } as const;
