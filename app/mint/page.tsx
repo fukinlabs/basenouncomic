@@ -134,29 +134,43 @@ export default function MintPage() {
 
   // Get FID and user data from SDK context automatically (following Farcaster SDK Context docs)
   // https://miniapps.farcaster.xyz/docs/sdk/context#user
-  // Only fetch if user hasn't explicitly signed out
+  // Only fetch if user hasn't explicitly signed out and hasn't signed in yet
   useEffect(() => {
-    // Don't auto-fetch if user has signed out
-    if (isSignedOut) return;
+    // Don't auto-fetch if user has signed out or already signed in
+    if (isSignedOut || isSignedIn) {
+      console.log("[Mint] Skipping context fetch:", { isSignedOut, isSignedIn });
+      return;
+    }
 
     const getContext = async () => {
       try {
         const inMini = await sdk.isInMiniApp();
-        if (!inMini) return;
+        console.log("[Mint] isInMiniApp:", inMini);
+        if (!inMini) {
+          console.log("[Mint] Not in Mini App, skipping context fetch");
+          return;
+        }
 
         const ctx = await sdk.context;
+        console.log("[Mint] SDK context:", ctx);
         if (ctx?.user?.fid) {
           const extractedFid = ctx.user.fid.toString();
-          setFid(extractedFid);
-          
-          // FID is set, Header component will handle user data display
+          console.log("[Mint] Found FID from context:", extractedFid);
+          // Only set FID if not already signed in (to allow manual sign in)
+          // Context FID is just for display, manual sign in is required for verification
+          if (!isSignedIn) {
+            setFid(extractedFid);
+            console.log("[Mint] Set FID from context (will require manual sign in for verification)");
+          }
+        } else {
+          console.log("[Mint] No FID found in context");
         }
       } catch (error) {
-        console.error("Error getting context:", error);
+        console.error("[Mint] Error getting context:", error);
       }
     };
     getContext();
-  }, [isSignedOut]);
+  }, [isSignedOut, isSignedIn]);
 
   // Sign In with Farcaster (following Farcaster Auth Guide)
   // https://miniapps.farcaster.xyz/docs/sdk/actions/sign-in
@@ -178,8 +192,15 @@ export default function MintPage() {
       console.log("[Mint] Sign In result:", {
         hasMessage: !!result.message,
         hasSignature: !!result.signature,
-        messageLength: result.message?.length || 0
+        messageLength: result.message?.length || 0,
+        message: result.message?.substring(0, 100) + "...", // Log first 100 chars of message
+        signature: result.signature?.substring(0, 20) + "...", // Log first 20 chars of signature
       });
+      
+      // Validate that we got message and signature
+      if (!result.message || !result.signature) {
+        throw new Error("Sign in failed: Missing message or signature from SDK");
+      }
 
       // Verify the message on server
       const verifyResponse = await fetch("/api/verify-signin", {
@@ -1359,8 +1380,9 @@ export default function MintPage() {
             {/* Bottom Button - SIGN IN FARCASTER or MINT */}
             <div className="w-full">
               <div className="flex justify-center">
-                {!isSignedOut && !fid && !isSignedIn ? (
-                  // Show Sign In button if we have FID but not signed in
+                {!isSignedOut && !isSignedIn ? (
+                  // Show Sign In button if not signed out and not signed in yet
+                  // Note: fid from context doesn't mean signed in - manual sign in is required
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
@@ -1383,7 +1405,7 @@ export default function MintPage() {
                   >
                     {isSigningIn ? "Signing in..." : "SIGN IN FARCASTER"}
                   </button>
-                ) : !isSignedOut && fid ? (
+                ) : !isSignedOut && fid && isSignedIn ? (
                   // Show Mint button if we have FID (from context or sign in)
                   // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted), show View NFT button instead
                   (mintedTokenId || !!isAlreadyMinted) ? (
