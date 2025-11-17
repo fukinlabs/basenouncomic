@@ -5,9 +5,9 @@ const ROOT_URL =
 
 export const minikitConfig = {
   accountAssociation: {
-    "header": "eyJmaWQiOjI5MDY1NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDVhZjI2MWZFMmQyMENCODhEQzNkNTVmMzAzNzE2NWJGMWQ5NzIwNmMifQ",
-    "payload": "eyJkb21haW4iOiJmYXJjYXN0ZXJhYnN0YWN0Lnd0ZiJ9",
-    "signature": "nTviqxTq+oSbYRB2TKghc6eBdGdOKIw8XIDwsjfCOMY82G1Q/cimp+l3hdQfquNImlpHLMG5T/znlJvCoaZsghw="
+       "header": "eyJmaWQiOjI5MDY1NCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDhBNDhBNzYzNTY5QTc5Nzg2OTZGN2Y0MkRkYkY0RjdBNTVhM2I1ZDIifQ",
+        "payload": "eyJkb21haW4iOiIifQ",
+        "signature": "Nw+W0yLlDJ+Kkui5Uy+eBBizlaSgXqO0mmkPiybSYUYQcjtkzE6Fb2kq85qsD4JXWJcHvwZgIdl+t3+zWPiLsRs="
   },
   miniapp: {
     version: "1",
