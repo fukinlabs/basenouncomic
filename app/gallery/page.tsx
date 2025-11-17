@@ -491,10 +491,16 @@ export default function GalleryPage() {
         const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(numTerm)}`);
         if (metadataResponse.ok) {
           const metadata = await metadataResponse.json();
+          console.log(`[Gallery Search] 📄 Got metadata with owner:`, {
+            tokenId: numTerm,
+            owner: metadata.owner,
+            hasImage: !!metadata.image
+          });
+          
           // Show the NFT in detailed view
           const foundNFT: NFT = {
             tokenId: numTerm,
-            owner: "",
+            owner: metadata.owner || "", // ใช้ owner จาก metadata API
             fid: "",
             image: metadata.image,
             name: metadata.name,
@@ -647,8 +653,8 @@ export default function GalleryPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-2 sm:p-4">
-      <div className="max-w-6xl mx-auto w-full">
+    <main className="flex flex-col min-h-screen bg-gradient-to-b from-gray-50 to-white p-2 sm:p-4 overflow-x-hidden">
+      <div className="max-w-6xl mx-auto w-full min-w-0 flex-1">
         {/* Header */}
         <div className="space_g mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div>
@@ -672,12 +678,13 @@ export default function GalleryPage() {
           </div> 
         </div>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearchSubmit} className="mb-4 sm:mb-6">
-          <div className="flex flex-col sm:flex-row gap-2">
+        {/* Search Bar - Mobile Optimized */}
+        <form onSubmit={handleSearchSubmit} className="space_d mb-4 sm:mb-6">
+          <div className="flex flex-col gap-2 w-full">
+            {/* Input field - Full width on mobile */}
             <input
               type="text"
-              placeholder="Search by Token ID (#123) or FID (123)..."
+              placeholder="Search Token ID or FID..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -690,31 +697,34 @@ export default function GalleryPage() {
                   setSearchMetadata(null);
                 }
               }}
-              className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-white text-gray-900 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
+              className="w-full px-3 py-2 sm:px-4 sm:py-2 bg-white text-gray-900 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm sm:text-base min-h-[44px]"
               disabled={isSearching}
             />
-            <div className="flex gap-2">
+            
+            {/* Buttons - Proper mobile sizing */}
+            <div className="flex gap-2 w-full">
               <button
                 type="submit"
                 disabled={isSearching || !searchTerm.trim()}
-                className="h-8 w-15  flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                className="flex-1 min-w-[80px] px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm font-medium min-h-[44px] touch-manipulation"
               >
-                {isSearching ? "Searching..." : "Search"}
+                {isSearching ? "🔍..." : "🔍 Search"}
               </button>
+              
               {searchTerm && (
                 <button
                   type="button"
-              onClick={() => {
-                setSearchTerm("");
-                setPage(1);
-                setNfts([]);
-                setError(null);
-                setSearchResult(null);
-                setSearchMetadata(null);
-              }}
-                  className="px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setPage(1);
+                    setNfts([]);
+                    setError(null);
+                    setSearchResult(null);
+                    setSearchMetadata(null);
+                  }}
+                  className="flex-shrink-0 min-w-[64px] px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium min-h-[44px] touch-manipulation"
                 >
-                  Clear
+                  ✕ Clear
                 </button>
               )}
             </div>
@@ -738,7 +748,7 @@ export default function GalleryPage() {
           
           return (
             <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-gray-50 to-white">
-              <div className="w-full max-w-2xl text-center">
+              <div className="space_c w-full max-w-2xl text-center">
                 <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 text-gray-900">
                   {searchMetadata?.name || searchResult.name || `NFT #${searchResult.tokenId}`}
                 </h1>
@@ -764,6 +774,11 @@ export default function GalleryPage() {
                           {displayFid && (
                             <p className="text-sm text-purple-600 mt-1">FID: {displayFid}</p>
                           )}
+                          {searchResult?.owner && (
+                            <p className="text-sm font-mono text-purple-700 mt-1 break-all">
+                              {searchResult.owner}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -776,7 +791,7 @@ export default function GalleryPage() {
                         {searchMetadata.attributes.map((attr, idx) => (
                           <div 
                             key={idx}
-                            className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg border border-gray-200"
+                               className="w-38 space_d bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg border border-gray-200"
                           >
                             <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
                               {attr.trait_type}
@@ -798,7 +813,7 @@ export default function GalleryPage() {
                     </div>
                   )}
                   
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
+                  <div className="space_d bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800 font-medium mb-2">
                       💡 Share this NFT
                     </p>
@@ -853,7 +868,7 @@ export default function GalleryPage() {
 
                 <Link
                   href={`/mint/${searchResult.tokenId}`}
-                  className="nf_m h-12 w-48 inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                  className="vp_spaceb w-full sm:w-auto min-w-[140px] h-14 mt-2 space_b inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-wrap-600 text-white rounded-lg hover:bg-wrap-700 transition-colors text-sm sm:text-base font-medium touch-manipulation"
                 >
                   View Full Page →
                 </Link>
@@ -872,7 +887,7 @@ export default function GalleryPage() {
               <p className="text-sm sm:text-base text-gray-600">No NFTs found</p>
               {searchTerm && (
                 <p className="text-xs sm:text-sm text-gray-500 mt-2">
-                  Try searching for a different Token ID or FID
+                  Try searching for a different Token ID 
                 </p>
               )}
             </div>
@@ -887,15 +902,15 @@ export default function GalleryPage() {
                 ))}
               </div>
 
-              {/* Load More Button */}
+              {/* Load More Button - Mobile Optimized */}
               {hasMore && (
                 <div className="mt-4 sm:mt-6 text-center">
                   <button
                     onClick={loadMore}
                     disabled={isLoading}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                    className="min-w-[120px] min-h-[44px] px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors text-sm sm:text-base font-medium touch-manipulation"
                   >
-                    {isLoading ? "Loading..." : "Load More"}
+                    {isLoading ? "⏳ Loading..." : "📄 Load More"}
                   </button>
                 </div>
               )}

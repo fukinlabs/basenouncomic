@@ -64,9 +64,13 @@ a {
   background-color: #7959ff !important;
 } 
 .vp_space{margin-top: 2.5em;}
+.vp_spaceb{margin-top: 1em;}
 .space_g{padding-top: 2.5em;}
 .space_d{padding: 0.5em;}
+.space_c{padding: 2.5em 0.5em 0.5em 0.5em;}
+.space_d{padding: 0em 0.5em 0em 0.5em;}
 .space_b{padding-bottom: 1em;}
+.vp_spacem{margin-top: 1em 0em ;}
 .color-wrap-100 { color: var(--color-wrap-100); }
 .color-wrap-200 { color: var(--color-wrap-200); }
 .color-wrap-300 { color: var(--color-wrap-300); }

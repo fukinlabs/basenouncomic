@@ -9,25 +9,24 @@
   },
   "miniapp": {
     "version": "1",
-    "name": "Blad Gamet",
-    "homeUrl": "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app",
-    "iconUrl": "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app/blue-icon.png",
-    "splashImageUrl": "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app/blue-icon.png",
-    "splashBackgroundColor": "#FFFFFF",
-    "webhookUrl": "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app/api/webhook",
-    "subtitle": "A Next.js Web3 game",
-    "description": "A Next.js application with Web3 and Farcaster integration",
+    "name": "Farcaster Abstract P5",
+    "homeUrl": "https://farcasterabstact.wtf/mint",
+    "iconUrl": "https://farcasterabstact.wtf/splash.png",
+    "splashImageUrl": "https://farcasterabstact.wtf/monkey.gif",
+    "splashBackgroundColor": "#2f3057",
+    "webhookUrl": "https://farcasterabstact.wtf/api/webhook",
+    "subtitle": "AI Nouns Companion for P5js",
+    "description": "AI Generative Nouns Companion",
     "screenshotUrls": [
-      "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app/screenshot-portrait.png"
+      "https://farcasterabstact.wtf/screenshot-portrait.png"
     ],
-    "primaryCategory": "social",
-    "tags": ["game", "web3", "farcaster"],
-    "heroImageUrl": "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app/blue-hero.png",
-    "tagline": "Play, Connect, Earn",
-    "ogTitle": "Blad Gamet - Web3 Game",
-    "ogDescription": "A Next.js application with Web3 and Farcaster integration",
-    "ogImageUrl": "https://baldgame-4tmdkrp1n-fukins-projects-0ac7d453.vercel.app/blue-hero.png",
+    "primaryCategory": "art-creativity",
+    "tags": ["art", "ai", "generative", "nft"],
+    "heroImageUrl": "https://farcasterabstact.wtf/blue-hero.png",
+    "tagline": "AI Generative Art Companion",
+    "ogTitle": "Farcaster Abstract P5 - AI Art",
+    "ogDescription": "Create generative AI art with Nouns companion",
+    "ogImageUrl": "https://farcasterabstact.wtf/blue-hero.png",
     "noindex": false
   }
 }
-

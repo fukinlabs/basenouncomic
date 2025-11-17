@@ -38,59 +38,160 @@ export async function GET(request: NextRequest) {
 
     // Smart contract uses tokenId = nextId++ (sequential: 0, 1, 2, 3...)
     // FID is stored in tokenURI metadata attributes, not as tokenId
-    // First, check if NFT exists by trying to get owner
-    // If NFT doesn't exist, ownerOf will throw an error
-    let owner: string;
-    try {
-      owner = await publicClient.readContract({
-        address: NFT_CONTRACT_ADDRESS,
-        abi: [
-          parseAbiItem("function ownerOf(uint256 tokenId) view returns (address)"),
-        ],
-        functionName: "ownerOf",
-        args: [BigInt(tokenIdNum)],
-      });
-    } catch {
-      // NFT doesn't exist (ERC721NonexistentToken error)
+    // First, check if NFT exists by trying to get owner (with retry for better reliability)
+    let owner: string | undefined = undefined;
+    
+    const maxRetries = 3;
+    let lastOwnerError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[nft-metadata] 🔍 Checking NFT existence (attempt ${attempt}/${maxRetries}) for tokenId ${tokenIdNum}`);
+        
+        owner = await publicClient.readContract({
+          address: NFT_CONTRACT_ADDRESS,
+          abi: [
+            parseAbiItem("function ownerOf(uint256 tokenId) view returns (address)"),
+          ],
+          functionName: "ownerOf",
+          args: [BigInt(tokenIdNum)],
+        });
+        
+        console.log(`[nft-metadata] ✅ NFT exists, owner: ${owner}`);
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        lastOwnerError = error instanceof Error ? error : new Error(String(error));
+        console.warn(`[nft-metadata] ⚠️ ownerOf attempt ${attempt}/${maxRetries} failed:`, {
+          error: lastOwnerError.message,
+          tokenId: tokenIdNum,
+          contractAddress: NFT_CONTRACT_ADDRESS
+        });
+        
+        // If it's the last attempt, check if this is a "not exists" error
+        if (attempt === maxRetries) {
+          // Check if error indicates NFT doesn't exist vs network/RPC issues
+          if (lastOwnerError.message.includes('ERC721NonexistentToken') || 
+              lastOwnerError.message.includes('owner query for nonexistent token')) {
+            return NextResponse.json(
+              { 
+                error: "NFT not found - This token has not been minted yet",
+                tokenId: tokenIdNum
+              },
+              { status: 404 }
+            );
+          } else {
+            // Network/RPC error - return 503 for retry
+            return NextResponse.json(
+              { 
+                error: "RPC service temporarily unavailable. Please try again.",
+                details: lastOwnerError.message,
+                tokenId: tokenIdNum,
+                contractAddress: NFT_CONTRACT_ADDRESS
+              },
+              { status: 503 }
+            );
+          }
+        }
+        
+        // Wait before retry (exponential backoff)
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 3000); // 1s, 2s, 3s max
+          console.log(`[nft-metadata] 💤 Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+    
+    // Check if owner was successfully retrieved
+    if (!owner) {
       return NextResponse.json(
-        { error: "NFT not found - This token has not been minted yet" },
-        { status: 404 }
+        { 
+          error: "Failed to verify NFT ownership after multiple retries",
+          tokenId: tokenIdNum,
+          attempts: maxRetries
+        },
+        { status: 503 }
       );
     }
 
     // If owner is zero address, NFT doesn't exist
-    if (!owner || owner === "0x0000000000000000000000000000000000000000") {
+    if (owner === "0x0000000000000000000000000000000000000000") {
       return NextResponse.json(
         { error: "NFT not found - This token has not been minted yet" },
         { status: 404 }
       );
     }
 
-    // Read tokenURI from contract using tokenId (tokenId = nextId++, FID is in metadata)
-    let tokenURI: string;
-    try {
-      tokenURI = await publicClient.readContract({
-        address: NFT_CONTRACT_ADDRESS,
-        abi: [
-          parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
-        ],
-        functionName: "tokenURI",
-        args: [BigInt(tokenIdNum)], // tokenId = nextId++ (0, 1, 2, 3...), FID is in tokenURI metadata
-      });
-      console.log(`[nft-metadata] Successfully read tokenURI for tokenId ${tokenIdNum}, length: ${tokenURI?.length || 0}`);
-    } catch (error) {
-      console.error(`[nft-metadata] Error reading tokenURI for tokenId ${tokenIdNum}:`, error);
+    // Read tokenURI from contract using tokenId (with retry for better reliability)
+    let tokenURI: string | undefined = undefined;
+    let lastTokenURIError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[nft-metadata] 📄 Reading tokenURI (attempt ${attempt}/${maxRetries}) for tokenId ${tokenIdNum}`);
+        
+        tokenURI = await publicClient.readContract({
+          address: NFT_CONTRACT_ADDRESS,
+          abi: [
+            parseAbiItem("function tokenURI(uint256 tokenId) view returns (string)"),
+          ],
+          functionName: "tokenURI",
+          args: [BigInt(tokenIdNum)], // tokenId = nextId++ (0, 1, 2, 3...), FID is in tokenURI metadata
+        });
+        
+        console.log(`[nft-metadata] ✅ Successfully read tokenURI for tokenId ${tokenIdNum}:`, {
+          length: tokenURI?.length || 0,
+          type: tokenURI?.startsWith('data:') ? 'base64_encoded' : 'url',
+          preview: tokenURI?.substring(0, 50) + (tokenURI?.length > 50 ? '...' : '')
+        });
+        
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        lastTokenURIError = error instanceof Error ? error : new Error(String(error));
+        console.warn(`[nft-metadata] ⚠️ tokenURI attempt ${attempt}/${maxRetries} failed:`, {
+          error: lastTokenURIError.message,
+          tokenId: tokenIdNum,
+          contractAddress: NFT_CONTRACT_ADDRESS
+        });
+        
+        // If it's the last attempt, return error
+        if (attempt === maxRetries) {
+          return NextResponse.json(
+            { 
+              error: "Failed to read tokenURI from contract after multiple retries",
+              details: lastTokenURIError.message,
+              tokenId: tokenIdNum,
+              contractAddress: NFT_CONTRACT_ADDRESS,
+              attempts: maxRetries
+            },
+            { status: 503 } // Service unavailable - RPC issues
+          );
+        }
+        
+        // Wait before retry
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
+          console.log(`[nft-metadata] 💤 Waiting ${waitTime}ms before tokenURI retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+    
+    // Check if tokenURI was successfully retrieved
+    if (!tokenURI) {
       return NextResponse.json(
         { 
-          error: "Failed to read tokenURI from contract",
-          details: error instanceof Error ? error.message : String(error),
-          tokenId: tokenIdNum
+          error: "Failed to read tokenURI after multiple retries",
+          tokenId: tokenIdNum,
+          attempts: maxRetries
         },
-        { status: 500 }
+        { status: 503 }
       );
     }
 
-    if (!tokenURI || tokenURI.trim() === "") {
+    if (tokenURI.trim() === "") {
       return NextResponse.json(
         { error: "Token URI not set for this NFT" },
         { status: 404 }
@@ -107,19 +208,37 @@ export async function GET(request: NextRequest) {
     };
     
     if (tokenURI.startsWith("data:application/json;base64,")) {
-      // TokenURI is base64 encoded JSON - decode it directly
+      // TokenURI is base64 encoded JSON - decode it directly (from smart contract)
       try {
         const base64Data = tokenURI.replace("data:application/json;base64,", "");
         const jsonStr = Buffer.from(base64Data, "base64").toString("utf-8");
-        console.log(`[nft-metadata] Decoded base64 tokenURI for tokenId ${tokenIdNum}, JSON length: ${jsonStr.length}`);
+        console.log(`[nft-metadata] ✅ Successfully decoded base64 tokenURI for tokenId ${tokenIdNum}:`, {
+          jsonLength: jsonStr.length,
+          source: 'smart_contract_base64', // ข้อมูลมาจาก contract โดยตรง ไม่ใช่ Pinata
+          preview: jsonStr.substring(0, 100) + (jsonStr.length > 100 ? '...' : '')
+        });
         metadata = JSON.parse(jsonStr);
+        
+        // Log metadata details for debugging
+        console.log(`[nft-metadata] 📋 Metadata details for tokenId ${tokenIdNum}:`, {
+          name: metadata.name,
+          hasImage: !!metadata.image,
+          imageType: metadata.image?.startsWith('data:') ? 'base64' : 'url',
+          attributesCount: metadata.attributes?.length || 0,
+          fid: metadata.attributes?.find(attr => attr.trait_type === 'FID')?.value
+        });
       } catch (error) {
-        console.error(`[nft-metadata] Error decoding base64 tokenURI for tokenId ${tokenIdNum}:`, error);
+        console.error(`[nft-metadata] ❌ Error decoding base64 tokenURI for tokenId ${tokenIdNum}:`, {
+          error: error instanceof Error ? error.message : String(error),
+          base64Length: tokenURI.length,
+          reason: 'json_parse_failed'
+        });
         return NextResponse.json(
           { 
-            error: "Failed to decode base64 tokenURI",
+            error: "Failed to decode base64 tokenURI from smart contract",
             details: error instanceof Error ? error.message : String(error),
-            tokenId: tokenIdNum
+            tokenId: tokenIdNum,
+            source: 'smart_contract_base64'
           },
           { status: 500 }
         );
@@ -332,7 +451,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(metadata);
+    // Return metadata along with owner information
+    return NextResponse.json({
+      ...metadata,
+      owner: owner // เพิ่ม owner address ที่ได้จาก ownerOf call
+    });
   } catch (error) {
     console.error(`[nft-metadata] Unexpected error fetching NFT metadata for tokenId ${request.nextUrl.searchParams.get("tokenId")}:`, error);
     return NextResponse.json(

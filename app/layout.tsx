@@ -4,7 +4,7 @@ import "./globals.css";
 
 import { RootProvider } from "./rootProvider";
 import { minikitConfig } from "../minikit.config";
-import Header from "./components/Header";
+import HeaderWrapper from "./components/HeaderWrapper";
 
 // Use same ROOT_URL logic as minikit.config.ts for consistency
 const ROOT_URL =
@@ -65,11 +65,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <RootProvider>
-          <Header />
+          {/* Only show Header on non-root pages to optimize initial loading */}
+          <HeaderWrapper />
           {children}
         </RootProvider>
       </body>
     </html>
   );
 }
-

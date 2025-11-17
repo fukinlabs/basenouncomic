@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 
@@ -188,6 +187,7 @@ export default function Header() {
     localStorage.setItem("farcaster_signed_out", "true");
     localStorage.removeItem("farcaster_signed_in");
     localStorage.removeItem("farcaster_fid");
+    localStorage.removeItem("farcaster_address"); // Clear address from Sign In
     
     // Dispatch custom event to notify mint page immediately
     window.dispatchEvent(new Event("farcaster-signout"));
@@ -205,9 +205,9 @@ export default function Header() {
 
   return (
     <>
-      {/* Farcaster User Profile - Top Right (Show if we have FID and not signed out) */}
-      {!isSignedOut && fid ? (
-        <div className="fixed top-4 right-4 z-50" style={{ paddingRight: '5px' }} >
+      {/* Show account profile only when user has FID */}
+      {fid && (
+        <div className="fixed top-4 right-4 z-50" style={{ paddingRight: '5px' }}>
           <div 
             className="flex items-center gap-3 bg-purple-600 rounded-full px-5 py-3 border border-wrap-700 cursor-pointer hover:bg-wrap-700 transition-colors shadow-lg"
             onClick={() => setShowUserMenu(!showUserMenu)}
@@ -252,7 +252,8 @@ export default function Header() {
                 <div className="p-1">
                   <button
                     onClick={handleSignOut}
-                    className="w-28 h-8 text-left px-4 py-2.5 text-sm font-medium text-red-600 bg-pink-50 hover:bg-red-50 rounded-md transition-colors flex items-center gap-2.5 cursor-pointer" style={{paddingLeft:'5px'}}
+                    className="w-28 h-8 text-left px-4 py-2.5 text-sm font-medium text-red-600 bg-pink-50 hover:bg-red-50 rounded-md transition-colors flex items-center gap-2.5 cursor-pointer"
+                    style={{paddingLeft:'5px'}}
                   >
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -264,27 +265,7 @@ export default function Header() {
             </>
           )}
         </div>
-      ) : (
-        /* Sign In Button - Show when user is not logged in */
-        <div className="fixed top-4 right-4 z-50" style={{ paddingRight: '5px' }}>
-          <Link
-            href="/mint"
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full px-5 py-3 border border-purple-700 transition-colors shadow-lg font-semibold"
-          >
-            <svg 
-              className="w-5 h-5"
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-            </svg>
-            <span>Sign In</span>
-          </Link>
-        </div>
       )}
     </>
   );
 }
-

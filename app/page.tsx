@@ -1,141 +1,94 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
+import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 
-// AuthResponse interface can be added when integrating auth
-
 export default function Home() {
-  const { setFrameReady } = useMiniKit();
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [hasCalledReady, setHasCalledReady] = useState(false);
+  const { isFrameReady, setFrameReady } = useMiniKit();
+  const router = useRouter();
 
-  // Load background image and mark as ready when loaded
+  // Call ready() immediately and redirect - NO LOADING SCREEN
   useEffect(() => {
-    const img = new Image();
-    
-    // Set timeout to prevent infinite loading (max 3 seconds)
-    const timeoutId = setTimeout(() => {
-      setIsImageLoaded(true);
-    }, 3000);
-    
-    img.src = "/monkey.gif";
-    img.onload = () => {
-      clearTimeout(timeoutId);
-      setIsImageLoaded(true);
-    };
-    img.onerror = () => {
-      clearTimeout(timeoutId);
-      // Even if image fails, mark as loaded to show interface
-      setIsImageLoaded(true);
-    };
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, []);
+    console.log("========================================");
+    console.log("[TEST] 🚀 Starting MiniApp initialization...");
+    console.log("[TEST] Platform:", typeof navigator !== 'undefined' ? navigator.platform : 'unknown');
+    console.log("[TEST] User Agent:", typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown');
+    console.log("[TEST] isFrameReady:", isFrameReady);
+    console.log("[TEST] SDK available:", typeof sdk !== 'undefined');
+    console.log("[TEST] SDK actions available:", typeof sdk?.actions !== 'undefined');
+    console.log("========================================");
 
-  // Get Mini App context for debugging (redirect is handled in callReady)
-  // https://miniapps.farcaster.xyz/docs/sdk/context#open-mini-app
-  useEffect(() => {
-    const getContext = async () => {
+    // Initialize OnchainKit frame ready
+    if (!isFrameReady) {
+      console.log("[TEST] 📦 Calling setFrameReady()...");
+      setFrameReady();
+    }
+
+    // Call Farcaster SDK ready() with detailed logging
+    const callReady = async () => {
       try {
-        const inMini = await sdk.isInMiniApp();
+        console.log("[TEST] 📞 Attempting sdk.actions.ready({ disableNativeGestures: true })...");
+        const startTime = Date.now();
         
-        // If opened in Mini App, redirect is handled after ready() is called
-        // (see callReady function above)
-        if (inMini) {
-          return;
-        }
+        await sdk.actions.ready({ disableNativeGestures: true });
         
-        const ctx = await sdk.context;
+        const endTime = Date.now();
+        console.log("[TEST] ✅✅✅ ready() SUCCESS! (took", endTime - startTime, "ms)");
+        console.log("[TEST] Redirecting to /mint...");
         
-        // Log context for debugging
-        console.log("Mini App Context:", ctx);
-        
-        // Check if opened from another Mini App
-        if (ctx.location?.type === "open_miniapp") {
-          console.log("Opened from Mini App:", ctx.location.referrerDomain);
-          // You can use referrerDomain for:
-          // - Tracking referrals and attribution
-          // - Customizing the experience based on the referring app
-          // - Building app-to-app workflows
-        }
-        
-        // Check user info
-        if (ctx.user) {
-          console.log("User FID:", ctx.user.fid);
-          console.log("Username:", ctx.user.username);
-        }
-        
-        // Check client info
-        if (ctx.client) {
-          console.log("Platform:", ctx.client.platformType);
-          console.log("Added to client:", ctx.client.added);
-        }
+        // Redirect immediately
+        router.push("/mint");
       } catch (error) {
-        console.error("Error getting context:", error);
+        console.error("[TEST] ❌ ready() with disableNativeGestures FAILED:", error);
+        console.error("[TEST] Error details:", {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          name: error instanceof Error ? error.name : undefined
+        });
+        
+        // Fallback: try without disableNativeGestures
+        try {
+          console.log("[TEST] 🔄 Fallback: Trying sdk.actions.ready() without options...");
+          const startTime = Date.now();
+          
+          await sdk.actions.ready();
+          
+          const endTime = Date.now();
+          console.log("[TEST] ✅ ready() without options SUCCESS! (took", endTime - startTime, "ms)");
+          console.log("[TEST] Redirecting to /mint...");
+          
+          router.push("/mint");
+        } catch (fallbackError) {
+          console.error("[TEST] ❌❌❌ Fallback ready() also FAILED:", fallbackError);
+          console.error("[TEST] Error details:", {
+            message: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+            stack: fallbackError instanceof Error ? fallbackError.stack : undefined,
+            name: fallbackError instanceof Error ? fallbackError.name : undefined
+          });
+          console.log("[TEST] ⚠️ Redirecting anyway after 500ms...");
+          
+          setTimeout(() => {
+            router.push("/mint");
+          }, 500);
+        }
       }
     };
-    
-    getContext();
-  }, []);
 
-  // Call ready when interface is fully loaded (following Farcaster docs)
-  // https://miniapps.farcaster.xyz/docs/guides/loading
-  // Wait for your app to be ready, then call sdk.actions.ready()
-  // This hides the splash screen and allows redirect to /mint
+    // Call ready immediately
+    callReady();
+  }, [isFrameReady, setFrameReady, router]);
+
+  // Emergency fallback: redirect after 2 seconds
   useEffect(() => {
-    // Only call ready when:
-    // 1. Image has loaded (or failed to load or timeout)
-    // 2. We haven't called ready yet
-    // This prevents jitter and content reflow
-    if (isImageLoaded && !hasCalledReady) {
-      setHasCalledReady(true);
-      // Call both OnchainKit's setFrameReady and Farcaster SDK's ready
-      setFrameReady();
-      // Call sdk.actions.ready() directly to hide splash screen
-      // This is required to hide the splash screen and display your content
-      const callReady = async () => {
-        try {
-          await sdk.actions.ready();
-          // After splash screen is hidden, check if we need to redirect
-          const inMini = await sdk.isInMiniApp();
-          if (inMini) {
-            // Small delay to ensure smooth transition after splash screen is hidden
-            setTimeout(() => {
-              window.location.href = "/mint";
-            }, 100);
-          }
-        } catch (error) {
-          console.error("Error calling sdk.actions.ready():", error);
-        }
-      };
-      callReady();
-    }
-  }, [isImageLoaded, hasCalledReady, setFrameReady]);
-   
-  // Auth can be integrated here later if needed
+    const emergencyTimer = setTimeout(() => {
+      console.log("[TEST] 🚨 EMERGENCY: Force redirect after 2s (ready() may have failed silently)");
+      router.push("/mint");
+    }, 2000);
 
-  return (
-    <main 
-      className="relative min-h-screen w-full flex flex-col"
-      style={{ backgroundColor: "#2f3057" }}
-    >
-      {/* Background GIF - Full Screen */}
-      <div 
-        className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url(/monkey.gif)',
-          backgroundSize: '40%',
-          backgroundPosition: 'center',
-        }}
-      />
-      
-      {/* Overlay for better button visibility (optional) */}
-      <div className="absolute inset-0 bg-[#2f3057]/30" />
-      
-    </main>
-  );
+    return () => clearTimeout(emergencyTimer);
+  }, [router]);
+
+  // NO UI - Just redirect immediately
+  return null;
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
@@ -14,20 +14,51 @@ import { NFT_CONTRACT_ADDRESS } from "../../lib/contract-config";
 export default function MintPage() {
   const { address } = useAccount(); // Keep address as fallback
   const { composeCastAsync } = useComposeCast();
-  const [fid, setFid] = useState<string>("");
-  const [signInAddress, setSignInAddress] = useState<string | null>(null); // Address from Farcaster Sign In
+  // Initialize states with localStorage values to prevent flicker
+  const [fid, setFid] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
+      if (signedOut) return "";
+      return localStorage.getItem("farcaster_fid") || "";
+    }
+    return "";
+  });
+  
+  const [signInAddress, setSignInAddress] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
+      if (signedOut) return null;
+      return localStorage.getItem("farcaster_address") || null;
+    }
+    return null;
+  });
+  
+  const [isSignedIn, setIsSignedIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
+      if (signedOut) return false;
+      const signedIn = localStorage.getItem("farcaster_signed_in") === "true";
+      const storedFid = localStorage.getItem("farcaster_fid");
+      return signedIn && !!storedFid;
+    }
+    return false;
+  });
+  
+  const [isSignedOut, setIsSignedOut] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("farcaster_signed_out") === "true";
+    }
+    return false;
+  });
+  
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null);
   const [isMinting, setIsMinting] = useState(false);
   const [imageBase64, setImageBase64] = useState<string>("");
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isSignedIn, setIsSignedIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [isAlreadyMinted, setIsAlreadyMinted] = useState<boolean | null>(null);
-  const [isInterfaceReady, setIsInterfaceReady] = useState(false);
-  const [hasCalledReady, setHasCalledReady] = useState(false);
-  const [userNFT, setUserNFT] = useState<{ tokenId: string; image?: string; name?: string } | null>(null);
+  const [userNFT, setUserNFT] = useState<{ tokenId: string; image?: string; name?: string; source?: string } | null>(null);
   const [isLoadingNFT, setIsLoadingNFT] = useState(false);
-  const [isSignedOut, setIsSignedOut] = useState(false);
   const [tokenIdError, setTokenIdError] = useState<string | null>(null);
   const [showSignInSuccess, setShowSignInSuccess] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -44,90 +75,30 @@ export default function MintPage() {
   };
 
   // Call ready when interface is fully loaded (following Farcaster docs)
-  // https://miniapps.farcaster.xyz/docs/guides/loading
-  // Wait for your app to be ready, then call sdk.actions.ready()
-  // This is required to hide the splash screen and display your content
-  // You should call ready as soon as possible while avoiding jitter and content reflows
-  // Don't call ready until your interface has loaded to avoid jitter and content reflow
-  useEffect(() => {
-    let cancelled = false;
-    let frameId2: number | null = null;
-    
-    // Use requestAnimationFrame to ensure DOM is ready and avoid jitter
-    // This ensures the UI skeleton/placeholder is rendered before hiding splash screen
-    const frameId1 = requestAnimationFrame(() => {
-      if (cancelled) return;
-      // Use double RAF to ensure layout is complete
-      frameId2 = requestAnimationFrame(() => {
-        if (!cancelled) {
-          setIsInterfaceReady(true);
-        }
-      });
-    });
+  // Note: sdk.actions.ready() is called in app/page.tsx before redirecting here
+  // We don't need to call it again to avoid conflicts with splash screen handling
 
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frameId1);
-      if (frameId2 !== null) {
-        cancelAnimationFrame(frameId2);
-      }
-    };
-  }, []);
-
-  // Call ready when interface is ready (following Farcaster best practices)
+  // Log initial state from localStorage (states are already initialized with localStorage values)
   useEffect(() => {
-    if (isInterfaceReady && !hasCalledReady) {
-      setHasCalledReady(true);
-      const callReady = async () => {
-        try {
-          await sdk.actions.ready();
-        } catch (error) {
-          console.error("Error calling sdk.actions.ready():", error);
-        }
-      };
-      callReady();
-    }
-  }, [isInterfaceReady, hasCalledReady]);
-
-  // Load sign in status and address from localStorage on mount
-  useEffect(() => {
-    // Check sign in status first
     const signedIn = localStorage.getItem("farcaster_signed_in") === "true";
     const storedFid = localStorage.getItem("farcaster_fid");
     const storedAddress = localStorage.getItem("farcaster_address");
     const signedOut = localStorage.getItem("farcaster_signed_out") === "true";
     
-    console.log("[Mint] Checking localStorage on mount:", {
+    console.log("[Mint] Initial state from localStorage:", {
       signedIn,
       storedFid,
       storedAddress,
       signedOut
     });
     
-    // If user has signed out, don't restore sign in state
-    if (signedOut) {
-      setIsSignedOut(true);
-      setIsSignedIn(false);
-      setFid("");
-      setSignInAddress(null);
-      console.log("[Mint] User is signed out, not restoring sign in state");
-      return;
-    }
-    
-    // If user has signed in before, restore sign in state
-    if (signedIn && storedFid) {
-      setIsSignedIn(true);
-      setIsSignedOut(false);
-      setFid(storedFid);
-      if (storedAddress) {
-        setSignInAddress(storedAddress);
-      }
-      console.log("[Mint] Restored sign in state from localStorage:", {
-        fid: storedFid,
-        address: storedAddress
-      });
-    }
-  }, []);
+    console.log("[Mint] Current component state:", {
+      currentIsSignedIn: isSignedIn,
+      currentFid: fid,
+      currentIsSignedOut: isSignedOut
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only log on mount, states are already initialized with localStorage values
 
   // Check if user has signed out (from localStorage) and listen for changes
   useEffect(() => {
@@ -370,282 +341,233 @@ export default function MintPage() {
     }
   }, [fid, refetchMintedFid]);
 
-  // Fetch user's NFT when FID changes
-  useEffect(() => {
-    let isMounted = true;
+  // Robust metadata fetching with multiple fallback sources
+  const fetchUserNFTMetadata = useCallback(async (fidToFetch: string, isMounted: { current: boolean }) => {
+    if (!fidToFetch || isNaN(Number(fidToFetch))) {
+      return null;
+    }
+
+    console.log(`[fetchUserNFTMetadata] 🔍 Starting multi-source fetch for FID: ${fidToFetch}`);
     
-    const fetchUserNFT = async () => {
-      if (!fid || isNaN(Number(fid))) {
-        setUserNFT(null);
-        return;
+    try {
+      // Step 1: Get tokenId from contract Mint event
+      const tokenResponse = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fidToFetch)}`);
+      
+      if (!isMounted.current) return null;
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json().catch(() => ({}));
+        console.warn(`[fetchUserNFTMetadata] ❌ Failed to get tokenId for FID ${fidToFetch}:`, errorData);
+        return null;
       }
 
-      setIsLoadingNFT(true);
-      try {
-        const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid)}`);
+      const tokenData = await tokenResponse.json();
+      console.log(`[fetchUserNFTMetadata] ✅ Got tokenId from Mint event:`, tokenData);
+      
+      // Validate tokenId
+      if (!tokenData.tokenId || tokenData.tokenId === "undefined" || tokenData.tokenId === "null") {
+        console.warn(`[fetchUserNFTMetadata] ❌ Invalid tokenId in response:`, tokenData.tokenId);
+        return null;
+      }
+      
+      const tokenIdStr = String(tokenData.tokenId).trim();
+      if (!/^\d+$/.test(tokenIdStr)) {
+        console.error(`[fetchUserNFTMetadata] ❌ Invalid tokenId format:`, tokenIdStr);
+        return null;
+      }
+
+      // Step 2: Fetch metadata from multiple sources with fallback
+      // Try contract first (fastest), then Pinata IPFS as backup
+      const metadataSources = [
+        {
+          name: 'contract_tokenURI',
+          url: `/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`,
+          timeout: 8000, // 8 seconds for contract calls
+        },
+        // If contract fails, we could add Pinata as backup here
+        // But currently our contract stores everything in tokenURI directly
+      ];
+
+      let successfulMetadata = null;
+      let lastError: Error | null = null;
+
+      // Try each source sequentially (contract first, then fallbacks)
+      for (const source of metadataSources) {
+        if (!isMounted.current) return null;
         
-        if (!isMounted) return;
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("NFT by FID response:", data);
+        try {
+          console.log(`[fetchUserNFTMetadata] 📥 Trying ${source.name} for tokenId ${tokenIdStr}...`);
           
-          // Validate tokenId - must be a valid number (including "0" for first NFT)
-          if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null") {
-            const tokenIdStr = String(data.tokenId).trim();
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), source.timeout);
+          
+          const metadataResponse = await fetch(source.url, {
+            signal: controller.signal,
+            headers: {
+              'Cache-Control': 'no-cache', // Force fresh data
+            }
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (metadataResponse.ok) {
+            const metadata = await metadataResponse.json();
             
-            // Double check tokenId is valid (accept "0" for first NFT)
-            if (!/^\d+$/.test(tokenIdStr)) {
-              console.error("Invalid tokenId format:", tokenIdStr);
-              if (isMounted) {
-                setUserNFT(null);
+            console.log(`[fetchUserNFTMetadata] ✅ Success from ${source.name}:`, {
+              tokenId: tokenIdStr,
+              name: metadata.name,
+              hasImage: !!metadata.image,
+              source: source.name,
+              imageType: metadata.image?.startsWith('data:') ? 'base64' : 'url'
+            });
+            
+            // Extract and verify tokenId from metadata
+            let verifiedTokenId = tokenIdStr;
+            if (metadata.name && typeof metadata.name === 'string') {
+              const nameMatch = metadata.name.match(/#(\d+)$/);
+              if (nameMatch && nameMatch[1]) {
+                verifiedTokenId = nameMatch[1];
+                console.log(`[fetchUserNFTMetadata] 🔍 Verified tokenId from metadata: ${verifiedTokenId}`);
+                
+                if (verifiedTokenId !== tokenIdStr) {
+                  console.warn(`[fetchUserNFTMetadata] ⚠️ TokenId mismatch: metadata=${verifiedTokenId}, event=${tokenIdStr}. Using metadata value.`);
+                }
               }
-              return;
             }
             
-            // Fetch metadata to get image and verify tokenId from metadata
-            try {
-              const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
-              console.log("Metadata response status:", metadataResponse.status);
-              if (metadataResponse.ok) {
-                const metadata = await metadataResponse.json();
-                console.log("Metadata:", metadata);
-                
-                // Extract tokenId from metadata.name (e.g., "Farcaster Abtract #0" → "0")
-                // This ensures we use the tokenId from contract metadata (_safeMint, _setTokenURI)
-                let verifiedTokenId = tokenIdStr;
-                if (metadata.name && typeof metadata.name === 'string') {
-                  // Extract tokenId from name format: "Farcaster Abtract #0"
-                  const nameMatch = metadata.name.match(/#(\d+)$/);
-                  if (nameMatch && nameMatch[1]) {
-                    verifiedTokenId = nameMatch[1];
-                    console.log("TokenId extracted from metadata.name:", verifiedTokenId);
-                    
-                    // Verify tokenId matches (should be the same)
-                    if (verifiedTokenId !== tokenIdStr) {
-                      console.warn(`TokenId mismatch: metadata has ${verifiedTokenId}, event has ${tokenIdStr}. Using metadata tokenId.`);
-                    }
-                  }
-                }
-                
-                if (isMounted) {
-                  setUserNFT({
-                    tokenId: verifiedTokenId, // Use tokenId from metadata (from contract)
-                    image: metadata.image,
-                    name: metadata.name,
-                  });
-                }
-              } else {
-                // Even if metadata fetch fails, still show NFT with tokenId
-                console.warn("Metadata fetch failed, using tokenId only");
-                if (isMounted) {
-                  setUserNFT({
-                    tokenId: tokenIdStr,
-                  });
-                }
-              }
-            } catch (err) {
-              // Use tokenId as fallback even on error
-              console.error("Error fetching metadata:", err);
-              if (isMounted) {
-                setUserNFT({
-                  tokenId: tokenIdStr,
-                });
-              }
-            }
+            successfulMetadata = {
+              tokenId: verifiedTokenId,
+              image: metadata.image,
+              name: metadata.name,
+              source: source.name // Track which source provided the data
+            };
+            
+            break; // Success! Exit loop
+            
           } else {
-            console.log("No valid tokenId in response:", data.tokenId);
-            if (isMounted) {
-              setUserNFT(null);
-            }
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          console.log("NFT by FID error:", response.status, errorData);
-          
-          // If RPC service unavailable (503), log but don't show error to user
-          // This is a temporary issue that will resolve itself
-          if (response.status === 503) {
-            console.warn("RPC service temporarily unavailable, will retry later");
+            throw new Error(`HTTP ${metadataResponse.status}: ${metadataResponse.statusText}`);
           }
           
-          if (isMounted) {
-            setUserNFT(null);
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          
+          if (error instanceof Error && error.name === 'AbortError') {
+            console.warn(`[fetchUserNFTMetadata] ⏱️ Timeout from ${source.name} (${source.timeout}ms)`);
+          } else {
+            console.warn(`[fetchUserNFTMetadata] ❌ Error from ${source.name}:`, {
+              error: error instanceof Error ? error.message : String(error),
+              tokenId: tokenIdStr
+            });
           }
-        }
-      } catch (error) {
-        console.error("Error fetching user NFT:", error);
-        if (isMounted) {
-          setUserNFT(null);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingNFT(false);
+          
+          // Continue to next source
+          continue;
         }
       }
-    };
 
-    fetchUserNFT();
+      // Return result or fallback
+      if (successfulMetadata) {
+        console.log(`[fetchUserNFTMetadata] 🎉 Final result for FID ${fidToFetch}:`, successfulMetadata);
+        return successfulMetadata;
+      } else {
+        // All sources failed, return minimal data with tokenId only
+        console.error(`[fetchUserNFTMetadata] 💥 All sources failed for FID ${fidToFetch}. Using tokenId-only fallback.`, {
+          lastError: lastError?.message,
+          tokenId: tokenIdStr
+        });
+        
+        return {
+          tokenId: tokenIdStr,
+          source: 'fallback_tokenid_only'
+        };
+      }
+      
+    } catch (error) {
+      console.error(`[fetchUserNFTMetadata] 💥 Unexpected error for FID ${fidToFetch}:`, {
+        error: error instanceof Error ? error.message : String(error),
+        type: 'unexpected_error'
+      });
+      return null;
+    }
+  }, []); // No dependencies needed as function is pure
 
-    return () => {
-      isMounted = false;
-    };
-  }, [fid]);
-
-  // Fetch tokenId from contract when isAlreadyMinted is true but userNFT.tokenId is not available
-  // This ensures the "View My NFT" button always has the correct tokenId from contract
-  // Reads tokenId from contract via /api/nft-by-fid which queries Mint events
+  // Fetch user's NFT when FID changes (debounced to prevent duplicate calls)
   useEffect(() => {
-    let isMounted = true;
-    let hasFetched = false;
+    const isMounted = { current: true };
+    let timeoutId: NodeJS.Timeout;
     
-    const fetchTokenIdFromContract = async () => {
-      // Only fetch if FID is minted but we don't have tokenId yet
-      if (!isAlreadyMinted || !fid || isNaN(Number(fid))) {
+    const debouncedFetchUserNFT = () => {
+      if (!fid || isNaN(Number(fid)) || isSignedOut || !isSignedIn) {
+        setUserNFT(null);
+        setIsLoadingNFT(false);
+        setTokenIdError(null);
         return;
       }
-      
-      // Skip if we already have tokenId
-      if (userNFT?.tokenId || mintedTokenId) {
-        return;
-      }
-      
-      // Prevent duplicate fetches
-      if (hasFetched) {
-        return;
-      }
-      
-      hasFetched = true;
-      
-      try {
+
+      // Debounce to prevent rapid consecutive calls
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        if (!isMounted.current) return;
+        
         setIsLoadingNFT(true);
         setTokenIdError(null);
         
-        // Fetch tokenId from /api/nft-by-fid (reads from contract via Mint event)
-        const response = await fetch(`/api/nft-by-fid?fid=${encodeURIComponent(fid)}`);
+        const nftData = await fetchUserNFTMetadata(fid, isMounted);
         
-        if (!isMounted) return;
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log("TokenId from contract (Mint event):", data.tokenId);
-          
-          // Validate tokenId from Mint event (accept "0" for first NFT)
-          if (data.tokenId && data.tokenId !== "undefined" && data.tokenId !== "null") {
-            const tokenIdStr = String(data.tokenId).trim();
-            
-            if (/^\d+$/.test(tokenIdStr)) {
-              // Verify tokenId from metadata (read from tokenURI)
-              try {
-                const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(tokenIdStr)}`);
-                if (metadataResponse.ok) {
-                  const metadata = await metadataResponse.json();
-                  
-                  // Extract tokenId from metadata.name (from contract _setTokenURI)
-                  let verifiedTokenId = tokenIdStr;
-                  if (metadata.name && typeof metadata.name === 'string') {
-                    const nameMatch = metadata.name.match(/#(\d+)$/);
-                    if (nameMatch && nameMatch[1]) {
-                      verifiedTokenId = nameMatch[1];
-                      console.log("TokenId verified from metadata.name:", verifiedTokenId);
-                      
-                      // Use tokenId from metadata (from contract _setTokenURI)
-                      if (isMounted && !userNFT?.tokenId) {
-                        setUserNFT({
-                          tokenId: verifiedTokenId, // Use tokenId from metadata (from contract)
-                          image: metadata.image,
-                          name: metadata.name,
-                        });
-                        setTokenIdError(null);
-                        setIsLoadingNFT(false);
-                        return; // Success, exit early
-                      }
-                    }
-                  }
-                } else {
-                  // Metadata fetch failed, but we have tokenId from Mint event
-                  console.warn("Could not fetch metadata, using Mint event tokenId");
-                }
-              } catch (metadataError) {
-                console.warn("Could not verify tokenId from metadata, using Mint event tokenId:", metadataError);
-              }
-              
-              // Fallback: Use tokenId from Mint event if metadata verification fails
-              if (isMounted && !userNFT?.tokenId) {
-                setUserNFT({
-                  tokenId: tokenIdStr,
-                });
-                setTokenIdError(null);
-                setIsLoadingNFT(false);
-                return;
-              }
-            } else {
-              // Invalid tokenId format
-              if (isMounted) {
-                setTokenIdError("Invalid tokenId format from contract");
-                setIsLoadingNFT(false);
-              }
-            }
-          } else {
-            // No tokenId in response
-            if (isMounted) {
-              setTokenIdError("TokenId not found in contract response");
-              setIsLoadingNFT(false);
-            }
-          }
-        } else {
-          // API error - parse error message from response
-          const errorData = await response.json().catch(() => ({}));
-          let errorMessage = errorData.error || `Failed to fetch tokenId (${response.status})`;
-          
-          // Provide more specific error messages based on status code
-          if (response.status === 404) {
-            if (errorData.error?.includes("Mint event not found")) {
-              errorMessage = errorData.error || "Mint event not found for this FID. The NFT may have been minted outside the search range. Please try again later or contact support.";
-            } else if (errorData.error?.includes("FID has not been minted")) {
-              errorMessage = "This FID has not been minted yet.";
-            } else {
-              errorMessage = errorData.error || "NFT not found for this FID. Mint event may not be in the search range.";
-            }
-          } else if (response.status === 503) {
-            errorMessage = "RPC service temporarily unavailable. Please try again in a few moments.";
-          } else if (response.status === 500) {
-            if (errorData.error?.includes("Failed to parse mint event")) {
-              errorMessage = errorData.error || "Failed to parse mint event. The contract data may be corrupted.";
-            } else if (errorData.error?.includes("TokenId not found in mint event")) {
-              errorMessage = errorData.error || "TokenId not found in mint event. This may indicate a contract issue.";
-            } else {
-              errorMessage = errorData.error || "Server error while fetching tokenId. Please try again.";
-            }
-          }
-          
-          console.error("Error fetching tokenId from contract:", errorMessage, "Status:", response.status, "Details:", errorData);
-          
-          if (isMounted) {
-            setTokenIdError(errorMessage);
-            setIsLoadingNFT(false);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching tokenId from contract:", error);
-        if (isMounted) {
-          setTokenIdError(error instanceof Error ? error.message : "Failed to fetch tokenId from contract");
+        if (isMounted.current) {
+          setUserNFT(nftData);
           setIsLoadingNFT(false);
+          
+          if (!nftData) {
+            console.log(`[fetchUserNFT] No NFT found for FID: ${fid}`);
+          }
         }
-        hasFetched = false; // Allow retry on error
-      }
+      }, 300); // 300ms debounce
     };
-    
-    // Small delay to avoid race condition with main fetchUserNFT
-    const timeoutId = setTimeout(() => {
-      fetchTokenIdFromContract();
-    }, 500);
-    
+
+    debouncedFetchUserNFT();
+
     return () => {
-      isMounted = false;
+      isMounted.current = false;
       clearTimeout(timeoutId);
     };
-  }, [isAlreadyMinted, fid, userNFT?.tokenId, mintedTokenId]);
+  }, [fid, isSignedOut, isSignedIn, fetchUserNFTMetadata]); // Add fetchUserNFTMetadata dependency
+
+  // Retry fetching NFT metadata when isAlreadyMinted is true but we don't have NFT data yet
+  // This handles the case where contract says it's minted but we haven't loaded the metadata
+  useEffect(() => {
+    const isMounted = { current: true };
+    let retryTimeoutId: NodeJS.Timeout;
+    
+    // Only retry if contract says it's minted but we don't have NFT data
+    if (isAlreadyMinted === true && !userNFT && !isLoadingNFT && fid && !isSignedOut && isSignedIn) {
+      console.log(`[retry] Contract says FID ${fid} is minted but no NFT data loaded. Retrying...`);
+      
+      // Retry after a short delay to avoid race condition
+      retryTimeoutId = setTimeout(async () => {
+        if (!isMounted.current) return;
+        
+        setIsLoadingNFT(true);
+        setTokenIdError(null);
+        
+        const nftData = await fetchUserNFTMetadata(fid, isMounted);
+        
+        if (isMounted.current) {
+          setUserNFT(nftData);
+          setIsLoadingNFT(false);
+          
+          if (!nftData) {
+            setTokenIdError("Failed to load NFT metadata. The NFT may have been minted recently and is still processing.");
+          }
+        }
+      }, 1000); // 1 second delay for retry
+    }
+    
+    return () => {
+      isMounted.current = false;
+      clearTimeout(retryTimeoutId);
+    };
+  }, [isAlreadyMinted, userNFT, isLoadingNFT, fid, isSignedOut, isSignedIn, fetchUserNFTMetadata]);
 
   const { 
     writeContract, 
@@ -1154,10 +1076,10 @@ export default function MintPage() {
   }, [fid, artSeed]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-b relative">
+    <main className="flex min-h-screen flex-col items-center justify-center pt-8 p-4 bg-gradient-to-b relative">
       <div className="w-full max-w-md">
         
-        {!fid && !isSignedIn && (
+        {(!fid || isSignedOut || !isSignedIn) && (
           <div className="box-content object-center w-full h-full ">
             <Image 
               src="/blue-icon.png" 
@@ -1168,10 +1090,10 @@ export default function MintPage() {
             />
           </div>
         )}
-        {!fid ? (
+        {(!fid || isSignedOut || !isSignedIn) ? (
           <div className="p-8 ">
             <div className="text-center">
-              {!isSignedIn && (
+              {(!isSignedIn || isSignedOut) && (
                 <div>
                   <button
                     onClick={handleSignIn}
@@ -1210,10 +1132,10 @@ export default function MintPage() {
         ) : mintedTokenId ? (
           <div className="text-center p-8 bg-green-50  shadow-lg">
             <div className="mb-4">
-              <div className="text-6xl mb-4">✅</div>
+              <div className="text-2xl mb-4">✅</div>
               {/* Show the NFT that user just minted (canvas NFT preview) */}
               <div className="flex justify-center mb-6">
-                <div className="w-full max-w-xs  overflow-hidden  shadow-md border border-green-100 py-4 px-2 flex flex-col items-center">
+                <div className="w-full max-w-xs overflow-hidden shadow-md border border-green-100 py-4 px-2 flex flex-col items-center">
                   <canvas
                     ref={userNFTCanvasRef}
                     width={200}
@@ -1244,14 +1166,14 @@ export default function MintPage() {
             </div>
             <button
               onClick={handleShare}
-             className="nf_m w-48 h-10 px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+             className="nf_m w-48 h-10 px-6 py-3 bg-wrap-600 text-white rounded-full hover:bg-wrap-700 transition-colors"
             >
               Share on Farcaster
             </button>
             <div className="mt-4">
               <a
                 href={`/mint/${mintedTokenId}`}
-                className="text-blue-600 hover:underline"
+                className="nf_m bg-wrap-600 text-white rounded-full hover:bg-wrap-700 transition-colors"
               >
                 View your NFT →
               </a>
@@ -1261,7 +1183,7 @@ export default function MintPage() {
           <div className="flex flex-col items-center space-y-6">
             {/* Single Art Preview - Full Screen */}
             {/* Only show canvas preview if user doesn't have NFT yet (no userNFT) */}
-            {fid && !userNFT && (
+            {fid && !userNFT && !isSignedOut && isSignedIn && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                   <canvas
@@ -1290,7 +1212,7 @@ export default function MintPage() {
             )}
 
             {/* User's NFT Display */}
-            {fid && !isLoadingNFT && userNFT && (
+            {fid && !isLoadingNFT && userNFT && !isSignedOut && isSignedIn && (
               <div className="w-full bg-white  p-4 ">
                 <h3 className="space_d text-lg font-semibold mb-3 text-center text-gray-800">
                    Your NFT Collection
@@ -1308,12 +1230,23 @@ export default function MintPage() {
                   {userNFT.tokenId && (
                     <>
                       <div className="text-center space_d">
-                        {/* ดึง name มาจาก metadata (เช่น pinata) */}
+                        {/* แสดงชื่อ NFT พร้อม source indicator */}
                         <p className="space_d text-sm font-semibold text-gray-700">
                         {userNFT.name 
-                            ? userNFT.name + " (จาก metadata)"  // แสดงว่าดึงมาจาก metadata Pinata
+                            ? userNFT.name // แสดงชื่อจาก metadata
                             : `Farcaster Abtract  #${userNFT.tokenId}`}
                         </p>
+                        {/* แสดง source ของข้อมูล */}
+                        {userNFT?.source && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {
+                            //  userNFT.source === 'contract_tokenURI' ? '⛓️ Smart Contract' :
+                            //  userNFT.source === 'pinata_ipfs' ? '📦 IPFS Backup' :
+                           //   userNFT.source === 'fallback_tokenid_only' ? '🔄 Fallback Mode' :
+                           //   '📋 Contract Data'
+                            }
+                          </p>
+                        )}
                         <p className="text-xs text-gray-500">Token ID: {userNFT.tokenId}</p>
                       </div>
                      
@@ -1324,14 +1257,14 @@ export default function MintPage() {
             )}
 
             {/* Loading state - show when fetching NFT data */}
-            {fid && isLoadingNFT && !userNFT && (
+            {fid && isLoadingNFT && !userNFT && !isSignedOut && isSignedIn && (
               <div className="w-full p-4 bg-gray-50 rounded-full">
                 <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
               </div>
             )}
 
             {/* Show message if FID exists but no NFT found */}
-            {fid && !isLoadingNFT && !userNFT && isAlreadyMinted === false && (
+            {fid && !isLoadingNFT && !userNFT && isAlreadyMinted === false && !isSignedOut && isSignedIn && (
               <div className="nf_m  w-full p-4 bg-blue-50 border border-blue-200 rounded-full">
                 <p className="text-sm text-blue-700 text-center">
                   You haven&apos;t minted an NFT yet. Mint your first NFT below! 🎨
@@ -1416,8 +1349,8 @@ export default function MintPage() {
             {/* Bottom Button - SIGN IN FARCASTER or MINT */}
             <div className="w-full">
               <div className="flex justify-center">
-                {!isSignedOut && !isSignedIn ? (
-                  // Show Sign In button if not signed out and not signed in yet
+                {(!isSignedIn || isSignedOut) ? (
+                  // Show Sign In button if not signed in yet OR if signed out
                   // Note: fid from context doesn't mean signed in - manual sign in is required
                   <button
                     onClick={handleSignIn}
@@ -1550,4 +1483,5 @@ export default function MintPage() {
     </main>
   );
 }
+
 
