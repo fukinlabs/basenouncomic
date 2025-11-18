@@ -1,7 +1,5 @@
 "use client";
-import { useEffect } from "react";
-import { useMiniKit } from "@coinbase/onchainkit/minikit";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
 "use client";
 import { useState, useEffect } from "react";
@@ -125,90 +123,122 @@ export default function Home() {
 }
 
 export default function Home() {
-  const { isFrameReady, setFrameReady } = useMiniKit();
-  const router = useRouter();
+  const [hasCalledReady, setHasCalledReady] = useState(false);
 
-  // Call ready() immediately and redirect - NO LOADING SCREEN
+  // PRIORITY 1: Call SDK ready() with AGGRESSIVE fallbacks for preview dapp
   useEffect(() => {
-    console.log("========================================");
-    console.log("[TEST] 🚀 Starting MiniApp initialization...");
-    console.log("[TEST] Platform:", typeof navigator !== 'undefined' ? navigator.platform : 'unknown');
-    console.log("[TEST] User Agent:", typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown');
-    console.log("[TEST] isFrameReady:", isFrameReady);
-    console.log("[TEST] SDK available:", typeof sdk !== 'undefined');
-    console.log("[TEST] SDK actions available:", typeof sdk?.actions !== 'undefined');
-    console.log("========================================");
-
-    // Initialize OnchainKit frame ready
-    if (!isFrameReady) {
-      console.log("[TEST] 📦 Calling setFrameReady()...");
-      setFrameReady();
-    }
-
-    // Call Farcaster SDK ready() with detailed logging
-    const callReady = async () => {
-      try {
-        console.log("[TEST] 📞 Attempting sdk.actions.ready({ disableNativeGestures: true })...");
-        const startTime = Date.now();
-        
-        await sdk.actions.ready({ disableNativeGestures: true });
-        
-        const endTime = Date.now();
-        console.log("[TEST] ✅✅✅ ready() SUCCESS! (took", endTime - startTime, "ms)");
-        console.log("[TEST] Redirecting to /mint...");
-        
-        // Redirect immediately
-        router.push("/mint");
-      } catch (error) {
-        console.error("[TEST] ❌ ready() with disableNativeGestures FAILED:", error);
-        console.error("[TEST] Error details:", {
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          name: error instanceof Error ? error.name : undefined
-        });
-        
-        // Fallback: try without disableNativeGestures
+    if (!hasCalledReady) {
+      setHasCalledReady(true);
+      
+      // Detect environment
+      const isFarcasterApp = window.parent !== window || 
+                            navigator.userAgent.includes('Farcaster') || 
+                            navigator.userAgent.includes('farcaster');
+      
+      // Redirect function with multiple fallbacks
+      const redirect = () => {
         try {
-          console.log("[TEST] 🔄 Fallback: Trying sdk.actions.ready() without options...");
-          const startTime = Date.now();
-          
-          await sdk.actions.ready();
-          
-          const endTime = Date.now();
-          console.log("[TEST] ✅ ready() without options SUCCESS! (took", endTime - startTime, "ms)");
-          console.log("[TEST] Redirecting to /mint...");
-          
-          router.push("/mint");
-        } catch (fallbackError) {
-          console.error("[TEST] ❌❌❌ Fallback ready() also FAILED:", fallbackError);
-          console.error("[TEST] Error details:", {
-            message: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
-            stack: fallbackError instanceof Error ? fallbackError.stack : undefined,
-            name: fallbackError instanceof Error ? fallbackError.name : undefined
-          });
-          console.log("[TEST] ⚠️ Redirecting anyway after 500ms...");
-          
-          setTimeout(() => {
-            router.push("/mint");
-          }, 500);
+          window.location.replace("/mint");
+        } catch {
+          try {
+            window.location.href = "/mint";
+          } catch {
+            window.location.assign("/mint");
+          }
         }
+      };
+      
+      if (isFarcasterApp) {
+        // Farcaster app: Call SDK ready with AGGRESSIVE timeout and multiple fallbacks
+        
+        // FALLBACK 1: Immediate redirect after 500ms (for preview dapp that hangs)
+        const immediateFallback = setTimeout(() => {
+          redirect();
+        }, 500);
+        
+        // FALLBACK 2: Fast redirect after 1 second
+        const fastFallback = setTimeout(() => {
+          redirect();
+        }, 1000);
+        
+        // FALLBACK 3: Absolute fallback after 2 seconds
+        const absoluteFallback = setTimeout(() => {
+          redirect();
+        }, 2000);
+        
+        const callReady = async () => {
+          try {
+            // Very short timeout for preview dapp (300ms)
+            const readyPromise = sdk.actions.ready();
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error("ready() timeout")), 300);
+            });
+            
+            await Promise.race([readyPromise, timeoutPromise]);
+            
+            // SDK ready succeeded - clear all fallbacks and redirect
+            clearTimeout(immediateFallback);
+            clearTimeout(fastFallback);
+            clearTimeout(absoluteFallback);
+            redirect();
+            
+          } catch {
+            // SDK ready failed - fallbacks will handle redirect
+            // Don't clear fallbacks - let them fire
+          }
+        };
+        
+        // Start SDK ready call (non-blocking)
+        callReady();
+        
+        return () => {
+          clearTimeout(immediateFallback);
+          clearTimeout(fastFallback);
+          clearTimeout(absoluteFallback);
+        };
+        
+      } else {
+        // Browser: redirect immediately (no SDK needed)
+        redirect();
       }
-    };
+    }
+  }, [hasCalledReady]);
 
-    // Call ready immediately
-    callReady();
-  }, [isFrameReady, setFrameReady, router]);
-
-  // Emergency fallback: redirect after 2 seconds
+  // PRIORITY 2: Background tasks (don't block ready())
   useEffect(() => {
-    const emergencyTimer = setTimeout(() => {
-      console.log("[TEST] 🚨 EMERGENCY: Force redirect after 2s (ready() may have failed silently)");
-      router.push("/mint");
-    }, 2000);
+    // Preload image in background
+    const img = new Image();
+    img.src = "/monkey.gif";
+  }, []);
+   
+  // Auth can be integrated here later if needed
 
-    return () => clearTimeout(emergencyTimer);
-  }, [router]);
-
-  // NO UI - Just redirect immediately
-  return null;
+  return (
+    <main 
+      className="relative min-h-screen w-full flex flex-col items-center justify-center"
+      style={{ backgroundColor: "#2f3057" }}
+    >
+      {/* Background GIF - Full Screen */}
+      <div 
+        className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/monkey.gif)',
+         backgroundSize: '60%',
+          backgroundPosition: 'center',
+        }}
+      />
+      
+      {/* Overlay for better button visibility */}
+      <div className="absolute inset-0 bg-[#2f3057]/30" />
+      
+       {/* Loading Indicator */}
+       <div className="relative z-10 text-center max-w-md mx-auto px-4">
+         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+         <p className="text-white text-lg font-medium mb-2">Loading...</p>
+         <p className="text-white/70 text-sm mb-4">Please wait...</p>
+       </div>
+      
+    </main>
+  );
 }
+

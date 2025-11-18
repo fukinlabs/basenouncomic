@@ -8,7 +8,7 @@ export const minikitConfig = {
     "header": "eyJmaWQiOjI5MDY1NCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDhBNDhBNzYzNTY5QTc5Nzg2OTZGN2Y0MkRkYkY0RjdBNTVhM2I1ZDIifQ",
     "payload": "eyJkb21haW4iOiJmYXJjYXN0ZXJhYnN0YWN0Lnd0ZiJ9",
     "signature": "ZoNdUDpagnxJCcX+d3mUVVtRuyRv6eLCj3/QM/Dn9v1dXYn26LD9bA6zsH9yusAOztphk+PPi0yn5boPg7l7WBs="
-   },
+  },
   miniapp: {
     version: "1",
     name: "wwwwww Farcaster Abstract P5",

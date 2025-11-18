@@ -43,18 +43,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate message format (should be SIWE message)
-    if (!message.includes("farcaster.xyz") && !message.includes("Sign in with Farcaster")) {
+    // Check for common Farcaster SIWE message patterns
+    const isValidMessage = message.includes("farcaster.xyz") || 
+                          message.includes("Sign in with Farcaster") ||
+                          message.includes("wants you to sign in") ||
+                          (message.includes("URI:") && message.includes("Version:") && message.includes("Chain ID:"));
+    
+    if (!isValidMessage) {
       console.warn("[verify-signin] Message may not be a valid Farcaster sign-in message");
+      // Continue anyway - let the SDK verify it
     }
 
     // Get domain for verification
     const domain = getUrlHost(request);
+    console.log("[verify-signin] Using origin host:", domain);
     console.log("[verify-signin] Verifying sign in message with domain:", domain, "nonce:", nonce ? "provided" : "missing");
 
-    // Create Farcaster auth client using viemConnector
+    // Get RPC URL for viemConnector (same logic as nft-by-fid route)
+    // Priority: BASE_RPC_URL env var > Base public RPC
+    const getRpcUrl = () => {
+      if (process.env.BASE_RPC_URL) {
+        return process.env.BASE_RPC_URL;
+      }
+      // Use Base public RPC (more reliable than default)
+      return "https://mainnet.base.org";
+    };
+
+    // Create Farcaster auth client using viemConnector with RPC URL
     // viemConnector handles getFid and isValidAuthAddress automatically
+    // Providing rpcUrl prevents "No rpcUrl provided" warning
     const client = createAppClient({
-      ethereum: viemConnector(),
+      ethereum: viemConnector({
+        rpcUrl: getRpcUrl(),
+      }),
     });
 
     // Verify the sign in message
