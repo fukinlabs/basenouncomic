@@ -22,10 +22,21 @@ export default function Home() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  // Initialize the miniapp
+  // Call ready when interface is ready to be displayed
+  // Following Farcaster docs: https://miniapps.farcaster.xyz/docs/guides/loading
+  // Key points:
+  // - "Call ready when your interface is ready to be displayed"
+  // - "You should call ready as soon as possible while avoiding jitter and content reflows"
+  // - "Don't call ready until your interface has loaded"
   useEffect(() => {
     if (!isFrameReady) {
-      setFrameReady();
+      // Wait for next tick to ensure DOM is fully rendered
+      // This prevents jitter and content reflows as recommended in the docs
+      const timer = setTimeout(() => {
+        setFrameReady();
+      }, 0);
+      
+      return () => clearTimeout(timer);
     }
   }, [setFrameReady, isFrameReady]);
  
