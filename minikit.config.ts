@@ -11,7 +11,7 @@ export const minikitConfig = {
   },
   miniapp: {
     version: "1",
-    name: "wwwwww Farcaster Abstract P5",
+    name: "Farcaster Abstract P5",
      subtitle: "AI Nouns Companion for P5js", 
     description: "AI Generative Nouns Companion",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
