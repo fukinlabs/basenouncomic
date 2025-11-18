@@ -20,13 +20,27 @@ export default function Home() {
   const { isFrameReady, setFrameReady, context } = useMiniKit();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
 
-  // Initialize the  miniapp
+  // Initialize the miniapp - set frame ready immediately
   useEffect(() => {
     if (!isFrameReady) {
       setFrameReady();
     }
+    
+    // Show content immediately if frame is ready
+    if (isFrameReady) {
+      setIsInitializing(false);
+      return;
+    }
+    
+    // Otherwise wait max 1 second to show content even if frame not ready
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, [setFrameReady, isFrameReady]);
  
   
@@ -83,6 +97,30 @@ export default function Home() {
     router.push("/success");
   };
 
+  // Show loading state only briefly
+  if (isInitializing) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.content}>
+          <div className={styles.waitlistForm}>
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ 
+                width: '40px', 
+                height: '40px', 
+                border: '3px solid rgba(255,255,255,0.3)',
+                borderTop: '3px solid #3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 16px'
+              }} />
+              <p style={{ opacity: 0.7 }}>Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <button className={styles.closeButton} type="button">
@@ -105,12 +143,23 @@ export default function Home() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={styles.emailInput}
+              disabled={isAuthLoading}
             />
             
             {error && <p className={styles.error}>{error}</p>}
             
-            <button type="submit" className={styles.joinButton}>
-              JOIN WAITLIST
+            {isAuthLoading && !error && (
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', textAlign: 'center' }}>
+                Verifying authentication...
+              </p>
+            )}
+            
+            <button 
+              type="submit" 
+              className={styles.joinButton}
+              disabled={isAuthLoading}
+            >
+              {isAuthLoading ? "LOADING..." : "JOIN WAITLIST"}
             </button>
           </form>
         </div>
