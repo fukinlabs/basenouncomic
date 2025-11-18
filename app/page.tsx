@@ -20,13 +20,21 @@ export default function Home() {
   const { isFrameReady, setFrameReady, context } = useMiniKit();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
 
-  // Initialize the miniapp - set frame ready immediately
+  // Initialize the miniapp
   useEffect(() => {
     if (!isFrameReady) {
       setFrameReady();
     }
+    
+    // Show loading screen briefly, then show content
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 1500); // Show loading for 1.5 seconds
+    
+    return () => clearTimeout(timer);
   }, [setFrameReady, isFrameReady]);
  
   
@@ -82,6 +90,18 @@ export default function Home() {
     // Navigate to success page
     router.push("/success");
   };
+
+  // Show loading screen during initialization
+  if (isInitializing) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loadingScreen}>
+          <div className={styles.loader}></div>
+          <p className={styles.loadingText}>Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
