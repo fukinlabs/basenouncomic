@@ -17,7 +17,7 @@ const miniappEmbed = {
   version: "1",
   imageUrl: `${ROOT_URL}/blue-hero.png`,
   button: {
-    title: "🎨 Mint NFT",
+    title: " Mint NFT",
     action: {
       type: "launch_miniapp",
       url: `${ROOT_URL}/mint`,
