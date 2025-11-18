@@ -29,12 +29,17 @@ export default function Home() {
       setFrameReady();
     }
     
-    // Show loading screen briefly, then show content
-    const timer = setTimeout(() => {
+    // Show content immediately if frame is ready, otherwise wait max 1 second
+    if (isFrameReady) {
       setIsInitializing(false);
-    }, 1500); // Show loading for 1.5 seconds
-    
-    return () => clearTimeout(timer);
+    } else {
+      // Fallback: show content after max 1 second even if frame not ready
+      const timer = setTimeout(() => {
+        setIsInitializing(false);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
   }, [setFrameReady, isFrameReady]);
  
   
@@ -97,7 +102,7 @@ export default function Home() {
       <div className={styles.container}>
         <div className={styles.loadingScreen}>
           <div className={styles.loader}></div>
-          <p className={styles.loadingText}>Initializing...</p>
+          <p className={styles.loadingText}>Please wait...</p>
         </div>
       </div>
     );
