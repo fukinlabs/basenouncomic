@@ -1,29 +1,27 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { sdk } from "@farcaster/miniapp-sdk";
 import styles from "./page.module.css";
 
 export default function Home() {
   const router = useRouter();
-  const { isFrameReady, setFrameReady } = useMiniKit();
 
   // Redirect to /mint page (homeUrl in minikit.config.ts)
-  // Following Farcaster docs: https://miniapps.farcaster.xyz/docs/guides/loading
+  // Following Farcaster docs: https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
+  // Important: Must call sdk.actions.ready() to hide splash screen
   useEffect(() => {
     const redirectToMint = async () => {
       try {
-        // Check if running in Farcaster miniapp (for logging/debugging)
-        await sdk.isInMiniApp();
+        // Check if running in Farcaster miniapp
+        const inMini = await sdk.isInMiniApp();
         
-        // Call ready when interface is ready to be displayed
-        if (!isFrameReady) {
-          // Wait for next tick to ensure DOM is fully rendered
-          // This prevents jitter and content reflows as recommended in the docs
-          setTimeout(() => {
-            setFrameReady();
-          }, 0);
+        if (inMini) {
+          // Call ready() immediately when interface is ready to be displayed
+          // This is required to hide the splash screen
+          // Following: https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
+          await sdk.actions.ready();
+          console.log("[Root] Called sdk.actions.ready()");
         }
 
         // Redirect to /mint page (matches homeUrl in minikit.config.ts)
@@ -32,8 +30,13 @@ export default function Home() {
           router.push("/mint");
         }, 100);
       } catch (error) {
-        console.error("Error checking miniapp or redirecting:", error);
-        // Fallback: redirect anyway
+        console.error("[Root] Error checking miniapp or calling ready():", error);
+        // Fallback: try to call ready() anyway, then redirect
+        try {
+          await sdk.actions.ready();
+        } catch (readyError) {
+          console.error("[Root] Error calling ready():", readyError);
+        }
         setTimeout(() => {
           router.push("/mint");
         }, 100);
@@ -41,7 +44,7 @@ export default function Home() {
     };
 
     redirectToMint();
-  }, [router, setFrameReady, isFrameReady]);
+  }, [router]);
 
   // Show loading screen while redirecting
   // Following Farcaster docs: https://miniapps.farcaster.xyz/docs/guides/loading
