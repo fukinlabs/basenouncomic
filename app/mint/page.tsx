@@ -75,8 +75,25 @@ export default function MintPage() {
   };
 
   // Call ready when interface is fully loaded (following Farcaster docs)
-  // Note: sdk.actions.ready() is called in app/page.tsx before redirecting here
-  // We don't need to call it again to avoid conflicts with splash screen handling
+  // https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
+  // Important: Must call sdk.actions.ready() to hide splash screen
+  useEffect(() => {
+    const callReady = async () => {
+      try {
+        const inMini = await sdk.isInMiniApp();
+        if (inMini) {
+          // Call ready() when interface is ready to be displayed
+          await sdk.actions.ready();
+          console.log("[Mint] Called sdk.actions.ready()");
+        }
+      } catch (error) {
+        console.error("[Mint] Error calling ready():", error);
+      }
+    };
+    
+    // Call ready() after component mounts and DOM is ready
+    callReady();
+  }, []);
 
   // Log initial state from localStorage (states are already initialized with localStorage values)
   useEffect(() => {
