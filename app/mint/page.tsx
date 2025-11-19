@@ -62,6 +62,22 @@ export default function MintPage() {
   const [tokenIdError, setTokenIdError] = useState<string | null>(null);
   const [showSignInSuccess, setShowSignInSuccess] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isInMiniApp, setIsInMiniApp] = useState(false);
+
+  // Check if running in Farcaster miniapp
+  useEffect(() => {
+    const checkMiniApp = async () => {
+      try {
+        const inMini = await sdk.isInMiniApp();
+        setIsInMiniApp(inMini);
+        console.log("[Mint] isInMiniApp:", inMini);
+      } catch (error) {
+        console.error("[Mint] Error checking miniapp:", error);
+        setIsInMiniApp(false);
+      }
+    };
+    checkMiniApp();
+  }, []);
 
   // Helper function to check if error is user rejection
   const isUserRejected = (errorMessage: string): boolean => {
@@ -1096,7 +1112,8 @@ export default function MintPage() {
     <main className="flex min-h-screen flex-col items-center justify-center pt-8 p-4 bg-gradient-to-b relative">
       <div className="w-full max-w-md">
         
-        {(!fid || isSignedOut || !isSignedIn) && (
+        {/* Show icon only if no FID and not in miniapp */}
+        {(!fid || (isSignedOut && !isInMiniApp) || (!isSignedIn && !isInMiniApp)) && (
           <div className="box-content object-center w-full h-full ">
             <Image 
               src="/blue-icon.png" 
@@ -1107,7 +1124,8 @@ export default function MintPage() {
             />
           </div>
         )}
-        {(!fid || isSignedOut || !isSignedIn) ? (
+        {/* Show Sign In only if: not in miniapp OR (in miniapp but no FID and not signed in) */}
+        {(!fid || (isSignedOut && !isInMiniApp) || (!isSignedIn && !isInMiniApp)) ? (
           <div className="p-8 ">
             <div className="text-center">
               {(!isSignedIn || isSignedOut) && (
@@ -1200,7 +1218,7 @@ export default function MintPage() {
           <div className="flex flex-col items-center space-y-6">
             {/* Single Art Preview - Full Screen */}
             {/* Only show canvas preview if user doesn't have NFT yet (no userNFT) */}
-            {fid && !userNFT && !isSignedOut && isSignedIn && (
+            {fid && !userNFT && !isSignedOut && (isSignedIn || isInMiniApp) && (
               <div className="w-full bg-white rounded-full p-4 shadow-lg">
                 <div className="w-full aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                   <canvas
@@ -1229,7 +1247,7 @@ export default function MintPage() {
             )}
 
             {/* User's NFT Display */}
-            {fid && !isLoadingNFT && userNFT && !isSignedOut && isSignedIn && (
+            {fid && !isLoadingNFT && userNFT && !isSignedOut && (isSignedIn || isInMiniApp) && (
               <div className="w-full bg-white  p-4 ">
                 <h3 className="space_d text-lg font-semibold mb-3 text-center text-gray-800">
                    Your NFT Collection
@@ -1274,14 +1292,14 @@ export default function MintPage() {
             )}
 
             {/* Loading state - show when fetching NFT data */}
-            {fid && isLoadingNFT && !userNFT && !isSignedOut && isSignedIn && (
+            {fid && isLoadingNFT && !userNFT && !isSignedOut && (isSignedIn || isInMiniApp) && (
               <div className="w-full p-4 bg-gray-50 rounded-full">
                 <p className="text-sm text-gray-600 text-center">Loading your NFT...</p>
               </div>
             )}
 
             {/* Show message if FID exists but no NFT found */}
-            {fid && !isLoadingNFT && !userNFT && isAlreadyMinted === false && !isSignedOut && isSignedIn && (
+            {fid && !isLoadingNFT && !userNFT && isAlreadyMinted === false && !isSignedOut && (isSignedIn || isInMiniApp) && (
               <div className="nf_m  w-full p-4 bg-blue-50 border border-blue-200 rounded-full">
                 <p className="text-sm text-blue-700 text-center">
                   You haven&apos;t minted an NFT yet. Mint your first NFT below! 🎨
@@ -1366,9 +1384,12 @@ export default function MintPage() {
             {/* Bottom Button - SIGN IN FARCASTER or MINT */}
             <div className="w-full">
               <div className="flex justify-center">
-                {(!isSignedIn || isSignedOut) ? (
-                  // Show Sign In button if not signed in yet OR if signed out
-                  // Note: fid from context doesn't mean signed in - manual sign in is required
+                {/* Show Sign In button only if:
+                    - Not in miniapp AND (not signed in OR signed out)
+                    - OR in miniapp but no FID and not signed in
+                */}
+                {((!isInMiniApp && (!isSignedIn || isSignedOut)) || (isInMiniApp && !fid && !isSignedIn)) ? (
+                  // Show Sign In button if not in miniapp OR if in miniapp but no FID
                   <button
                     onClick={handleSignIn}
                     disabled={isSigningIn}
@@ -1391,8 +1412,9 @@ export default function MintPage() {
                   >
                     {isSigningIn ? "Signing in..." : "SIGN IN FARCASTER"}
                   </button>
-                ) : !isSignedOut && fid && isSignedIn ? (
-                  // Show Mint button if we have FID (from context or sign in)
+                ) : (!isSignedOut && fid && (isSignedIn || isInMiniApp)) ? (
+                  // Show Mint button if we have FID (from context or sign in) AND
+                  // (signed in OR opened in miniapp)
                   // If minted successfully (mintedTokenId) or already minted (isAlreadyMinted), show View NFT button instead
                   (mintedTokenId || !!isAlreadyMinted) ? (
                     <div className="flex flex-col items-center gap-3">
