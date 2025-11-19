@@ -4,6 +4,11 @@ const ROOT_URL =
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://farcasterabstact.wtf');
 
 export const minikitConfig = {
+  accountAssociation: {
+    "header": "eyJmaWQiOjI5MDY1NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDVhZjI2MWZFMmQyMENCODhEQzNkNTVmMzAzNzE2NWJGMWQ5NzIwNmMifQ",
+    "payload": "eyJkb21haW4iOiJmYXJjYXN0ZXJhYnN0YWN0Lnd0ZiJ9",
+    "signature": "nTviqxTq+oSbYRB2TKghc6eBdGdOKIw8XIDwsjfCOMY82G1Q/cimp+l3hdQfquNImlpHLMG5T/znlJvCoaZsghw="
+  },
   miniapp: {
     version: "1",
     name: "Farcaster Abstract P5",
