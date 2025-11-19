@@ -62,7 +62,6 @@ export default function MintPage() {
   const [tokenIdError, setTokenIdError] = useState<string | null>(null);
   const [showSignInSuccess, setShowSignInSuccess] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
 
   // Helper function to check if error is user rejection
   const isUserRejected = (errorMessage: string): boolean => {
@@ -75,36 +74,9 @@ export default function MintPage() {
     );
   };
 
-  // Call ready when interface is ready to be displayed
-  // Following Farcaster docs: https://miniapps.farcaster.xyz/docs/guides/loading
-  // Key points:
-  // - "Call ready when your interface is ready to be displayed"
-  // - "You should call ready as soon as possible while avoiding jitter and content reflows"
-  // - "Don't call ready until your interface has loaded"
-  useEffect(() => {
-    const callReady = async () => {
-      try {
-        // Check if we're in a Mini App
-        const inMini = await sdk.isInMiniApp();
-        if (inMini) {
-          // Wait for next tick to ensure DOM is fully rendered
-          // This prevents jitter and content reflows as recommended in the docs
-          setTimeout(() => {
-            sdk.actions.ready();
-            setIsInitializing(false);
-          }, 0);
-        } else {
-          // Not in Mini App, skip ready() call
-          setIsInitializing(false);
-        }
-      } catch (error) {
-        console.error("[Mint] Error calling ready:", error);
-        setIsInitializing(false);
-      }
-    };
-
-    callReady();
-  }, []);
+  // Call ready when interface is fully loaded (following Farcaster docs)
+  // Note: sdk.actions.ready() is called in app/page.tsx before redirecting here
+  // We don't need to call it again to avoid conflicts with splash screen handling
 
   // Log initial state from localStorage (states are already initialized with localStorage values)
   useEffect(() => {
@@ -1102,20 +1074,6 @@ export default function MintPage() {
 
     return () => cancelAnimationFrame(frameId);
   }, [fid, artSeed]);
-
-  // Show loading screen during initialization
-  // Following Farcaster docs: https://miniapps.farcaster.xyz/docs/guides/loading
-  // "Use placeholders and skeleton states if additional loading is required"
-  if (isInitializing) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center pt-8 p-4 bg-gradient-to-b relative">
-        <div className="w-full max-w-md flex flex-col items-center justify-center">
-          <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600 text-lg font-medium">Loading...</p>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center pt-8 p-4 bg-gradient-to-b relative">
