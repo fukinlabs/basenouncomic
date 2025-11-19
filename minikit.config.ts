@@ -4,8 +4,6 @@ const ROOT_URL =
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://farcasterabstact.wtf');
 
 export const minikitConfig = {
-  accountAssociation: {
-  },
   miniapp: {
     version: "1",
     name: "Farcaster Abstract P5",
