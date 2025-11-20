@@ -147,7 +147,7 @@ async function checkMintStatus(address?: string, fid?: string) {
       });
 
       const fidNumber = BigInt(fid);
-      const validFidRange = fidNumber > 0n && fidNumber < 1000000n;
+      const validFidRange = fidNumber > BigInt(0) && fidNumber < BigInt(1000000);
 
       if (!hasMinted && !isFidUsed && validFidRange && nextId < maxSupply) {
         console.log("  ✅ All checks passed! You should be able to mint.");
