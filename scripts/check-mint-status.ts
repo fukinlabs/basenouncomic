@@ -11,7 +11,7 @@
 import { createPublicClient, http, parseAbi } from "viem";
 import { base } from "viem/chains";
 
-const CONTRACT_ADDRESS = "0xA617F0c86957fe5aa6b47A437f55391F6b2d875A" as const;
+const CONTRACT_ADDRESS = "0x110452B370bc763E067C67365caDe8Af83A30960" as const;
 
 const contractABI = parseAbi([
   "function authorizedSigner() view returns (address)",
@@ -35,13 +35,8 @@ async function checkMintStatus(address?: string, fid?: string) {
   console.log("Network: Base Mainnet (Chain ID: 8453)\n");
 
   try {
-    // Check authorized signer
-    const authorizedSigner = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: contractABI,
-      functionName: "authorizedSigner",
-    });
-    console.log("✅ Authorized Signer:", authorizedSigner);
+    // Note: Contract no longer uses signature verification
+    console.log("✅ Contract: Public minting (no signature required)");
 
     // Check total supply
     const totalSupply = await publicClient.readContract({
@@ -113,7 +108,7 @@ async function checkMintStatus(address?: string, fid?: string) {
             args: [fidNumber],
           });
           console.log("  📍 Minter address:", minter);
-        } catch (e) {
+        } catch {
           // Ignore if not found
         }
       } else {

@@ -901,53 +901,29 @@ export default function MintPage() {
         console.log("Using compressed base64 (gas: ~400,000-500,000, still much lower than original)");
       }
 
-      // Step 3: Request mint signature from backend
+      // Step 3: Prepare external URL
       const rootUrl = process.env.NEXT_PUBLIC_ROOT_URL || 
         process.env.NEXT_PUBLIC_URL || 
         (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3000");
       // Use predicted tokenId (from nextId()) for external_url
       // tokenId = nextId++ means the next mint will get this nextId value
       const externalUrl = `${rootUrl}/mint/${predictedTokenId || fid}`; // Use tokenId if available, fallback to fid
-      
-      // Request mint signature from backend
-      console.log("Requesting mint signature from backend...");
-      const signatureResponse = await fetch("/api/generate-mint-signature", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userAddress: mintAddress,
-          to: mintAddress,
-          fid,
-          isSignedIn,
-          isInMiniApp,
-        }),
-      });
 
-      if (!signatureResponse.ok) {
-        const signatureError = await signatureResponse.json();
-        throw new Error(signatureError.error || "Failed to get authorization signature");
-      }
-
-      const { signature, nonce } = await signatureResponse.json();
-      console.log("Received signature and nonce from backend");
-
-      // Step 4: Call mint with signature authorization
+      // Step 4: Call mint function (no signature required)
       // Verify contract address before minting
       console.log("Minting to contract:", NFT_CONTRACT_ADDRESS);
       console.log("Mint args:", { 
         to: mintAddress, 
         fid, 
         imageDataLength: imageData.length, 
-        externalUrl,
-        nonce,
-        signatureLength: signature.length 
+        externalUrl
       });
       
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
         functionName: "mint",
-        args: [mintAddress, BigInt(fid), imageData, externalUrl, BigInt(nonce), signature as `0x${string}`],
+        args: [mintAddress, BigInt(fid), imageData, externalUrl],
       });
     } catch (error) {
       console.error("Mint error:", error);
