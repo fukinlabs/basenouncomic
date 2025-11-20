@@ -901,8 +901,7 @@ export default function MintPage() {
         console.log("Using compressed base64 (gas: ~400,000-500,000, still much lower than original)");
       }
 
-      // Step 3: Call mint(to, fid, imageBase64, externalUrl) directly (no signature)
-      // Build external_url for metadata using predicted tokenId (from nextId())
+      // Step 3: Request mint signature from backend
       const rootUrl = process.env.NEXT_PUBLIC_ROOT_URL || 
         process.env.NEXT_PUBLIC_URL || 
         (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3000");
@@ -910,15 +909,45 @@ export default function MintPage() {
       // tokenId = nextId++ means the next mint will get this nextId value
       const externalUrl = `${rootUrl}/mint/${predictedTokenId || fid}`; // Use tokenId if available, fallback to fid
       
+      // Request mint signature from backend
+      console.log("Requesting mint signature from backend...");
+      const signatureResponse = await fetch("/api/generate-mint-signature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userAddress: mintAddress,
+          to: mintAddress,
+          fid,
+          isSignedIn,
+          isInMiniApp,
+        }),
+      });
+
+      if (!signatureResponse.ok) {
+        const signatureError = await signatureResponse.json();
+        throw new Error(signatureError.error || "Failed to get authorization signature");
+      }
+
+      const { signature, nonce } = await signatureResponse.json();
+      console.log("Received signature and nonce from backend");
+
+      // Step 4: Call mint with signature authorization
       // Verify contract address before minting
       console.log("Minting to contract:", NFT_CONTRACT_ADDRESS);
-      console.log("Mint args:", { to: mintAddress, fid, imageDataLength: imageData.length, externalUrl });
+      console.log("Mint args:", { 
+        to: mintAddress, 
+        fid, 
+        imageDataLength: imageData.length, 
+        externalUrl,
+        nonce,
+        signatureLength: signature.length 
+      });
       
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
         functionName: "mint",
-        args: [mintAddress, BigInt(fid), imageData, externalUrl],
+        args: [mintAddress, BigInt(fid), imageData, externalUrl, BigInt(nonce), signature as `0x${string}`],
       });
     } catch (error) {
       console.error("Mint error:", error);
@@ -1141,7 +1170,7 @@ export default function MintPage() {
               <div className="text-2xl mb-4">✅</div>
               {/* Show the NFT that user just minted (canvas NFT preview) */}
               <div className="flex justify-center mb-6">
-                <div className="w-full max-w-xs overflow-hidden shadow-md border border-green-100 py-4 px-2 flex flex-col items-center">
+                <div className="w-full max-w-xs overflow-hidden  border border-green-100 py-4 px-2 flex flex-col items-center">
                   <canvas
                     ref={userNFTCanvasRef}
                     width={200}
@@ -1151,7 +1180,10 @@ export default function MintPage() {
                   />
                  </div>
               </div>
-              <h2 className="text-2xl font-bold mb-2">NFT Minted Successfully!</h2>
+              <h2 className="text-2xl font-bold mb-2"
+                style={{  color: '#000000'}}
+              
+              >NFT Minted Successfully!</h2>
               <div className="mb-4 p-4 bg-white rounded-lg border border-green-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                   <div>
@@ -1176,10 +1208,10 @@ export default function MintPage() {
             >
               Share on Farcaster
             </button>
-            <div className="mt-4">
+            <div className="mt-4 text-white flex items-center justify-center">
               <a
                 href={`/mint/${mintedTokenId}`}
-                className="nf_m bg-wrap-600 text-white rounded-full hover:bg-wrap-700 transition-colors"
+                className="nf_m w-48 h-10  px-6 py-3 bg-wrap-600 text-white rounded-full hover:bg-wrap-700 active:bg-wrap-800 transition-all font-seminormal shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation min-h-[44px] flex items-center justify-center"
               >
                 View your NFT →
               </a>
