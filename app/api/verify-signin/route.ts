@@ -1,129 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAppClient, viemConnector } from "@farcaster/auth-client";
+import { createClient } from "@farcaster/quick-auth";
 
 /**
- * API Route to verify Sign In with Farcaster message
+ * API Route to verify Farcaster Quick Auth JWT
  * 
- * Following Farcaster Auth Guide:
- * https://miniapps.farcaster.xyz/docs/guides/auth
- * 
- * This endpoint verifies the SIWF message and signature from the client
- * and returns user information including FID.
- * 
- * Based on examples from: https://github.com/farcasterxyz/miniapps
+ * Uses @farcaster/quick-auth to verify the token provided by sdk.quickAuth.getToken()
+ * Doc: https://miniapps.farcaster.xyz/docs/sdk/quick-auth
  */
 export async function POST(request: NextRequest) {
   try {
-    const { message, signature, nonce } = await request.json();
-
-    // Validate required fields
-    if (!message || typeof message !== 'string') {
-      console.error("[verify-signin] Missing or invalid message");
-      return NextResponse.json(
-        { error: "Missing or invalid message" },
-        { status: 400 }
-      );
-    }
-
-    if (!signature || typeof signature !== 'string') {
-      console.error("[verify-signin] Missing or invalid signature");
-      return NextResponse.json(
-        { error: "Missing or invalid signature" },
-        { status: 400 }
-      );
-    }
-
-    // Validate signature format (should start with 0x)
-    if (!signature.startsWith('0x')) {
-      console.error("[verify-signin] Invalid signature format (must start with 0x)");
-      return NextResponse.json(
-        { error: "Invalid signature format" },
-        { status: 400 }
-      );
-    }
-
-    // Validate message format (should be SIWE message)
-    // Check for common Farcaster SIWE message patterns
-    const isValidMessage = message.includes("farcaster.xyz") || 
-                          message.includes("Sign in with Farcaster") ||
-                          message.includes("wants you to sign in") ||
-                          (message.includes("URI:") && message.includes("Version:") && message.includes("Chain ID:"));
+    const body = await request.json();
     
-    if (!isValidMessage) {
-      console.warn("[verify-signin] Message may not be a valid Farcaster sign-in message");
-      // Continue anyway - let the SDK verify it
-    }
+    // Support both new Quick Auth (token) and old SIWF (message/signature) for backward compatibility if needed
+    // But primarily we want to use token now
+    const { token, message, signature, nonce } = body;
 
-    // Get domain for verification
-    const domain = getUrlHost(request);
-    console.log("[verify-signin] Using origin host:", domain);
-    console.log("[verify-signin] Verifying sign in message with domain:", domain, "nonce:", nonce ? "provided" : "missing");
+    // If using Quick Auth (JWT) - Recommended
+    if (token) {
+      try {
+        // Initialize Quick Auth client
+        const client = createClient();
+        
+        // Verify the JWT
+        const payload = await client.verifyJwt({ 
+          token,
+          domain: "farcasterabstact.wtf" // Domain is required by type definition
+        });
 
-    // Get RPC URL for viemConnector (same logic as nft-by-fid route)
-    // Priority: BASE_RPC_URL env var > Base public RPC
-    const getRpcUrl = () => {
-      if (process.env.BASE_RPC_URL) {
-        return process.env.BASE_RPC_URL;
+        console.log("[verify-signin] Quick Auth JWT verified successfully:", payload);
+
+        // Fetch user details to get address if needed (Quick Auth only gives FID in payload)
+        // payload.sub is the FID
+        const fid = payload.sub;
+        let address = null;
+        
+        // Use any for payload to access optional properties that might be missing in type definition
+        // or properties that we expect but TypeScript doesn't know about
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const payloadAny = payload as any;
+        const username = payloadAny.username || payloadAny.name || "";
+        const displayName = payloadAny.display_name || payloadAny.name || "";
+        const pfpUrl = payloadAny.pfp_url || payloadAny.picture || "";
+
+        // Try to get primary address for this FID using Farcaster API
+        try {
+          const userResponse = await fetch(`https://client.warpcast.com/v2/user?fid=${fid}`);
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            // Try to find a verified address or custody address
+            address = userData.result?.user?.custodyAddress;
+          }
+        } catch (addrError) {
+          console.warn("[verify-signin] Failed to fetch user address:", addrError);
+        }
+
+        return NextResponse.json({
+          success: true,
+          user: {
+            fid: fid.toString(),
+            address: address, // Might be null if fetch failed, but we have authenticated FID
+            username: username,
+            displayName: displayName,
+            pfpUrl: pfpUrl,
+          },
+          method: "quick_auth"
+        });
+
+      } catch (error) {
+        console.error("[verify-signin] Invalid Quick Auth token:", error);
+        return NextResponse.json(
+          { error: "Invalid token", details: error instanceof Error ? error.message : String(error) },
+          { status: 401 }
+        );
       }
-      // Use Base public RPC (more reliable than default)
-      return "https://mainnet.base.org";
-    };
-
-    // Create Farcaster auth client using viemConnector with RPC URL
-    // viemConnector handles getFid and isValidAuthAddress automatically
-    // Providing rpcUrl prevents "No rpcUrl provided" warning
-    const client = createAppClient({
-      ethereum: viemConnector({
-        rpcUrl: getRpcUrl(),
-      }),
-    });
-
-    // Verify the sign in message
-    // Note: verifySignInMessage now supports Auth Addresses (v0.7.0+)
-    // Type assertion: signature is validated to start with 0x above
-    const result = await client.verifySignInMessage({
-      message,
-      signature: signature as `0x${string}`,
-      domain,
-      nonce, // Optional: verify nonce to prevent replay attacks
-    });
-
-    if (result.isError) {
-      console.error("[verify-signin] Signature verification failed:", {
-        error: result.error,
-        domain,
-        hasMessage: !!message,
-        hasSignature: !!signature,
-        hasNonce: !!nonce
-      });
-      return NextResponse.json(
-        { 
-          error: "Invalid signature", 
-          details: result.error?.message || "Signature verification failed",
-          domain 
-        },
-        { status: 401 }
-      );
     }
 
-    // Extract user information from verified message
-    // result has fid (from FarcasterResourceParams) and data.address (from SiweMessage)
-    const fid = result.fid;
-    const address = result.data.address;
+    // Fallback: Old Sign In with Farcaster (SIWF)
+    // ... existing logic for message/signature verification ...
+    if (message && signature) {
+      return verifySIWF(message, signature, nonce, request);
+    }
 
-    console.log("[verify-signin] Sign in successful:", {
-      fid: fid.toString(),
-      address,
-      domain
-    });
+    return NextResponse.json(
+      { error: "Missing token or signature" },
+      { status: 400 }
+    );
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        fid: fid.toString(),
-        address,
-      },
-    });
   } catch (error) {
     console.error("Error verifying sign in:", error);
     return NextResponse.json(
@@ -136,51 +98,78 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper to determine the correct domain for verification
-function getUrlHost(request: NextRequest): string {
-  const origin = request.headers.get("origin");
-  if (origin) {
-    try {
-      const url = new URL(origin);
-      console.log("[verify-signin] Using origin host:", url.host);
-      return url.host;
-    } catch (error) {
-      console.warn("[verify-signin] Invalid origin header:", origin, error);
-    }
-  }
-
-  const host = request.headers.get("host");
-  if (host) {
-    console.log("[verify-signin] Using request host:", host);
-    return host;
-  }
-
-  // Priority: NEXT_PUBLIC_ROOT_URL > NEXT_PUBLIC_URL > VERCEL_URL > default
-  let urlValue: string;
-  if (process.env.NEXT_PUBLIC_ROOT_URL) {
-    urlValue = process.env.NEXT_PUBLIC_ROOT_URL;
-  } else if (process.env.NEXT_PUBLIC_URL) {
-    urlValue = process.env.NEXT_PUBLIC_URL;
-  } else if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_URL) {
-    urlValue = `https://${process.env.VERCEL_URL}`;
-  } else if (process.env.VERCEL_URL) {
-    urlValue = `https://${process.env.VERCEL_URL}`;
-  } else {
-    urlValue = "https://farcasterabstact.wtf"; // Default to production domain
-  }
-
+// Fallback function for old SIWF verification
+async function verifySIWF(message: string, signature: string, nonce: string | undefined, request: NextRequest) {
   try {
-    const url = new URL(urlValue);
-    console.log("[verify-signin] Using fallback host:", url.host);
-    return url.host;
-  } catch (error) {
-    console.error("[verify-signin] Error parsing URL:", urlValue, error);
-    // Fallback to extracting host from string if URL parsing fails
-    const hostMatch = urlValue.match(/https?:\/\/([^\/]+)/);
-    if (hostMatch && hostMatch[1]) {
-      return hostMatch[1];
+    const { createAppClient, viemConnector } = await import("@farcaster/auth-client");
+    
+    const getRpcUrl = () => {
+      if (process.env.BASE_RPC_URL) return process.env.BASE_RPC_URL;
+      return "https://mainnet.base.org";
+    };
+
+    const client = createAppClient({
+      ethereum: viemConnector({
+        rpcUrl: getRpcUrl(),
+      }),
+    });
+
+    // Extract domain from message if possible
+    let domain: string = "farcasterabstact.wtf"; // Default fallback
+    try {
+        const uriMatch = message.match(/URI:\s*(https?:\/\/[^\s\n]+)/);
+        if (uriMatch && uriMatch[1]) {
+            domain = new URL(uriMatch[1]).host;
+        } else {
+            // Helper to determine domain from request
+            const origin = request.headers.get("origin");
+            if (origin) {
+              domain = new URL(origin).host;
+            } else {
+              const host = request.headers.get("host");
+              if (host) domain = host;
+            }
+        }
+    } catch (e) {
+        console.warn("Error extracting domain:", e);
+        // Keep default domain if extraction fails
     }
-    return "farcasterabstact.wtf"; // Final fallback
+
+    // Ensure domain is always a string (TypeScript type guard)
+    if (!domain || typeof domain !== 'string') {
+      return NextResponse.json({ error: "Domain required for SIWF verification" }, { status: 400 });
+    }
+
+    // TypeScript type assertion: domain is guaranteed to be string after check above
+    const verifiedDomain: string = domain;
+
+    // nonce is required by verifySignInMessage - use provided nonce or generate a default
+    const nonceToUse: string = nonce && typeof nonce === 'string' 
+      ? nonce 
+      : Math.random().toString(36).substring(2, 15);
+
+    const result = await client.verifySignInMessage({
+      message,
+      signature: signature as `0x${string}`,
+      domain: verifiedDomain,
+      nonce: nonceToUse,
+    });
+
+    if (result.isError) {
+      return NextResponse.json({ error: "Invalid signature", details: result.error?.message }, { status: 401 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        fid: result.fid.toString(),
+        address: result.data.address,
+      },
+      method: "siwf"
+    });
+  } catch (e) {
+    // Using e to log error details if needed, or just ignore
+    console.error("SIWF error:", e);
+    return NextResponse.json({ error: "SIWF verification failed" }, { status: 500 });
   }
 }
-

@@ -43,3 +43,4 @@ next-env.d.ts
 
 # Scripts with sensitive data
 add-pinata-env.sh
+add-pinata-env.ps1

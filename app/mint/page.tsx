@@ -212,101 +212,72 @@ export default function MintPage() {
     getContext();
   }, [isSignedOut, isSignedIn]);
 
-  // Sign In with Farcaster (following Farcaster Auth Guide)
-  // https://miniapps.farcaster.xyz/docs/sdk/actions/sign-in
+  // Sign In with Farcaster using Quick Auth
+  // Doc: https://miniapps.farcaster.xyz/docs/sdk/quick-auth
   const handleSignIn = async () => {
     setIsSigningIn(true);
-    setSignInError(null); // Clear previous errors
-    console.log("[Mint] Starting Farcaster sign in...");
+    setSignInError(null);
+    console.log("[Mint] Starting Farcaster Quick Auth sign in...");
+    
     try {
-      // Generate a random nonce (at least 8 alphanumeric characters)
-      const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      console.log("[Mint] Generated nonce:", nonce);
+      // 1. Get a Quick Auth token from the SDK
+      // This will either reuse an existing session or prompt the user to approve
+      const { token } = await sdk.quickAuth.getToken();
       
-      // Request Sign In with Farcaster credential
-      const result = await sdk.actions.signIn({
-        nonce,
-        acceptAuthAddress: true, // Support Auth Addresses for better UX
-      });
-
-      console.log("[Mint] Sign In result:", {
-        hasMessage: !!result.message,
-        hasSignature: !!result.signature,
-        messageLength: result.message?.length || 0,
-        message: result.message?.substring(0, 100) + "...", // Log first 100 chars of message
-        signature: result.signature?.substring(0, 20) + "...", // Log first 20 chars of signature
-      });
-      
-      // Validate that we got message and signature
-      if (!result.message || !result.signature) {
-        throw new Error("Sign in failed: Missing message or signature from SDK");
+      if (!token) {
+        throw new Error("Failed to get Quick Auth token");
       }
+      
+      console.log("[Mint] Got Quick Auth token");
 
-      // Verify the message on server
+      // 2. Send the token to our backend to verify and get user info
       const verifyResponse = await fetch("/api/verify-signin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message: result.message,
-          signature: result.signature,
-          nonce,
-        }),
+        body: JSON.stringify({ token }),
       });
 
       if (!verifyResponse.ok) {
         const errorData = await verifyResponse.json().catch(() => ({ error: "Unknown error" }));
-        const errorMessage = errorData.error || errorData.details || `Failed to verify sign in (${verifyResponse.status})`;
-        console.error("[Mint] Sign in verification failed:", {
-          status: verifyResponse.status,
-          error: errorData,
-          message: errorMessage
-        });
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || errorData.details || `Verification failed (${verifyResponse.status})`);
       }
 
       const verifyData = await verifyResponse.json();
+      
       if (verifyData.success && verifyData.user?.fid) {
         const extractedFid = verifyData.user.fid.toString();
-        const extractedAddress = verifyData.user.address; // Address from Farcaster Sign In
+        const extractedAddress = verifyData.user.address;
         
         setFid(extractedFid);
-        setSignInAddress(extractedAddress || null); // Store address from Sign In
+        setSignInAddress(extractedAddress || null);
         setIsSignedIn(true);
         setSignInError(null);
-        setIsSignedOut(false); // Clear sign out flag when signing in
-        setIsFadingOut(false); // Reset fade out state
-        setShowSignInSuccess(true); // Show success message
-        console.log("User signed in successfully:", verifyData.user);
+        setIsSignedOut(false);
+        setIsFadingOut(false);
+        setShowSignInSuccess(true);
+        console.log("User signed in successfully via Quick Auth:", verifyData.user);
         
-        // Clear sign out flag from localStorage
+        // Store session data
         localStorage.removeItem("farcaster_signed_out");
-        
-        // Store sign in state in localStorage for Header component
         localStorage.setItem("farcaster_signed_in", "true");
         localStorage.setItem("farcaster_fid", extractedFid);
         if (extractedAddress) {
           localStorage.setItem("farcaster_address", extractedAddress);
         }
         
-        // Dispatch custom event to notify Header component immediately
+        // Notify other components
         window.dispatchEvent(new Event("farcaster-signin"));
-        
-        console.log("[Mint] Sign in complete, FID stored:", extractedFid, "Address:", extractedAddress);
-        
-        // Header component will handle user data display
       }
     } catch (error) {
-      console.error("Sign In error:", error);
-      // If user cancels, silently return (don't show error)
-      if (error instanceof Error && error.name === "RejectedByUser") {
-        // User cancelled - just return without showing error
+      console.error("Quick Auth error:", error);
+      // Check for user rejection
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (isUserRejected(errorMessage)) {
         return;
-      } else {
-        // Show error for other failures
-        setSignInError(error instanceof Error ? error.message : String(error));
       }
+      setSignInError(errorMessage);
     } finally {
       setIsSigningIn(false);
     }
