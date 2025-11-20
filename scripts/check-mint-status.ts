@@ -11,7 +11,7 @@
 import { createPublicClient, http, parseAbi } from "viem";
 import { base } from "viem/chains";
 
-const CONTRACT_ADDRESS = "0x110452B370bc763E067C67365caDe8Af83A30960" as const;
+const CONTRACT_ADDRESS = "0x72B28A7Ad3dd63De52F97cC7E800d7759809C2b9" as const;
 
 const contractABI = parseAbi([
   "function authorizedSigner() view returns (address)",
