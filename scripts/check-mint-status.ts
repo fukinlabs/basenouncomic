@@ -123,7 +123,7 @@ async function checkMintStatus(address?: string, fid?: string) {
 
     // Summary
     console.log("\n📋 Summary:");
-    console.log("  - Contract is initialized:", authorizedSigner !== "0x0000000000000000000000000000000000000000");
+    console.log("  - Contract: Public minting (no signature required)");
     console.log("  - Supply status:", nextId < maxSupply ? "✅ Can mint" : "❌ Full");
     
     if (address && fid) {
