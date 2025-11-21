@@ -336,7 +336,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
                       {farcasterUser?.displayName || farcasterUser?.username || (fid ? `FID: ${fid}` : "Unknown")}
                     </h4>
                     {fid && (
-                      <p className="text-sm text-purple-600 mt-1">FID: {fid}</p>
+                      <p className="text-sm text-purple-600 mt-1">Address </p>
                     )}
                     {ownerAddress && (
                       <p className="text-sm font-mono text-purple-700 mt-1 break-all">
@@ -394,9 +394,9 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           </div>
         </div>
 
-        <div className=" vp_spacem  y-4  mt-6 mb-8">
+        <div className="y-4  mt-6 mb-8">
           {/* Share Buttons - Icons in a row */}
-          <div className="flex flex-row space_d gap-3 justify-center items-center">
+          <div className="flex flex-row space_d vp_spacem gap-3 justify-center items-center">
             <button
               onClick={handleShareFarcaster}
               disabled={isSharing}
@@ -435,7 +435,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             </button>
           </div>
 
-          <div className="flex flex-col space_b  text-white sm:flex-row gap-3 justify-center"> 
+          <div className="flex flex-col   text-white sm:flex-row gap-3 justify-center"> 
             <Link
               href="/gallery"
               className="px-6 py-3 bg-wrap-600 text-white rounded-lg hover:bg-wrap-700 active:bg-wrap-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 touch-manipulation min-h-[44px] flex items-center justify-center"

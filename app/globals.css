@@ -71,7 +71,7 @@ a {
 .space_d{padding: 0em 0.5em 0em 0.5em;}
 .space_e{padding: 0.5em  0em  0.5em 0em;}
 .space_b{padding-bottom: 1em;}
-.vp_spacem{margin: 1em 0em ;}
+.vp_spacem{margin: 0.5em 0em ;}
 .color-wrap-100 { color: var(--color-wrap-100); }
 .color-wrap-200 { color: var(--color-wrap-200); }
 .color-wrap-300 { color: var(--color-wrap-300); }
@@ -94,4 +94,5 @@ a {
  .w-28 { width: calc(var(--spacing)*28) }  
  .w-38 { width: calc(var(--spacing)*38) }  
  .w-15 { width: calc(var(--spacing)*15) }
+ .h-18 { height: calc(var(--spacing)*18) }
 
