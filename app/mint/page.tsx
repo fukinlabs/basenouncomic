@@ -592,11 +592,26 @@ export default function MintPage() {
   useEffect(() => {
     if (writeError) {
       const errorMessage = writeError?.message || "";
+      console.error("Write contract error:", writeError);
       if (isUserRejected(errorMessage)) {
+        setIsMinting(false);
+      } else {
+        // Show error if not user rejection
+        alert(`Mint failed: ${errorMessage}`);
         setIsMinting(false);
       }
     }
   }, [writeError]);
+
+  // Handle transaction error
+  useEffect(() => {
+    if (txError) {
+      const errorMessage = txError?.message || "";
+      console.error("Transaction error:", txError);
+      alert(`Transaction failed: ${errorMessage}`);
+      setIsMinting(false);
+    }
+  }, [txError]);
 
   // Handle successful mint - use tokenId from Mint event (smart contract uses tokenId = nextId++)
   useEffect(() => {
@@ -919,6 +934,18 @@ export default function MintPage() {
         externalUrl
       });
       
+      console.log("Calling writeContract with:", {
+        address: NFT_CONTRACT_ADDRESS,
+        functionName: "mint",
+        args: {
+          to: mintAddress,
+          fid: BigInt(fid),
+          imageBase64: imageData.substring(0, 50) + "...", // Log first 50 chars
+          imageDataLength: imageData.length,
+          externalUrl
+        }
+      });
+
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: contractABI,
