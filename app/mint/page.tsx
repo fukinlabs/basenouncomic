@@ -96,18 +96,38 @@ export default function MintPage() {
   useEffect(() => {
     const callReady = async () => {
       try {
-        const inMini = await sdk.isInMiniApp();
-        if (inMini) {
-          // Call ready() when interface is ready to be displayed
+        // Try to call ready() immediately, even if isInMiniApp check fails
+        // This ensures splash screen is hidden as soon as possible
+        try {
           await sdk.actions.ready();
-          console.log("[Mint] Called sdk.actions.ready()");
+          console.log("[Mint] Called sdk.actions.ready() successfully");
+        } catch {
+          // If ready() fails, check if we're in miniapp and retry
+          const inMini = await sdk.isInMiniApp();
+          if (inMini) {
+            try {
+              await sdk.actions.ready();
+              console.log("[Mint] Called sdk.actions.ready() after retry");
+            } catch (retryError) {
+              console.error("[Mint] Error calling ready() after retry:", retryError);
+            }
+          } else {
+            console.log("[Mint] Not in miniapp, ready() not needed");
+          }
         }
       } catch (error) {
-        console.error("[Mint] Error calling ready():", error);
+        console.error("[Mint] Error in callReady():", error);
+        // Fallback: try to call ready() anyway
+        try {
+          await sdk.actions.ready();
+          console.log("[Mint] Called sdk.actions.ready() in fallback");
+        } catch (fallbackError) {
+          console.error("[Mint] Error calling ready() in fallback:", fallbackError);
+        }
       }
     };
     
-    // Call ready() after component mounts and DOM is ready
+    // Call ready() immediately when component mounts
     callReady();
   }, []);
 
