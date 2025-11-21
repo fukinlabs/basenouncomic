@@ -349,7 +349,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             )}
             
             {metadata?.attributes && metadata.attributes.length > 0 && (
-              <div className="mb-4 space_d">
+              <div className="mb-4 ">
                 <h3 className="text-lg font-semibold mb-3">Attributes</h3>
                 <div className="flex flex-wrap gap-2">
                   {metadata.attributes.map((attr, idx) => (
@@ -376,7 +376,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
             
             {/* Description Section */}
             {metadata?.description && (
-              <div className="space_d mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="space_d vp_spacem h-14 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
                 <p className="text-sm text-gray-600">{metadata.description}</p>
               </div>
@@ -394,7 +394,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
           </div>
         </div>
 
-        <div className=" vp_spacem y-4  mt-6 mb-8">
+        <div className=" vp_spacem  y-4  mt-6 mb-8">
           {/* Share Buttons - Icons in a row */}
           <div className="flex flex-row space_d gap-3 justify-center items-center">
             <button
