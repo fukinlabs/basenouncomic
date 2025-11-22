@@ -6,6 +6,7 @@ import Image from "next/image";
 import { generateArt } from "../../lib/p5-art-generator";
 import ArtGenerator from "../components/ArtGenerator";
 import { useComposeCast } from '@coinbase/onchainkit/minikit';
+import { sdk } from "@farcaster/miniapp-sdk";
 import { minikitConfig } from "../../minikit.config";
 
 interface NFT {
@@ -340,16 +341,49 @@ export default function GalleryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid"); // Grid or List view
   const limit = 5; // Show 5 items initially
+
+  // Call sdk.actions.ready() for Farcaster Mini App
+  useEffect(() => {
+    const callReady = async () => {
+      try {
+        await sdk.actions.ready();
+        console.log("[Gallery] Called sdk.actions.ready()");
+      } catch (error) {
+        console.error("[Gallery] Error calling sdk.actions.ready():", error);
+        // If direct call fails, check isInMiniApp and retry
+        try {
+          const inMini = await sdk.isInMiniApp();
+          if (inMini) {
+            await sdk.actions.ready(); // retry
+            console.log("[Gallery] Retried sdk.actions.ready() after isInMiniApp check");
+          }
+        } catch (retryError) {
+          console.error("[Gallery] Error during sdk.actions.ready() retry:", retryError);
+          // Fallback: try to call ready() one last time
+          try {
+            await sdk.actions.ready();
+            console.log("[Gallery] Fallback: Called sdk.actions.ready() again");
+          } catch (fallbackError) {
+            console.error("[Gallery] Fallback: Error calling sdk.actions.ready():", fallbackError);
+          }
+        }
+      }
+    };
+    callReady();
+  }, []);
 
   // Fetch NFT list (only when not searching)
   useEffect(() => {
     // Don't fetch if user is searching
     if (searchTerm.trim()) {
+      setIsLoading(false); // Make sure loading is false when searching
       return;
     }
 
     let isMounted = true;
+    let isCancelled = false;
 
     const fetchNFTs = async () => {
       setIsLoading(true);
@@ -359,7 +393,7 @@ export default function GalleryPage() {
         const offset = (page - 1) * limit;
         const response = await fetch(`/api/nft-list?limit=${limit}&offset=${offset}`);
 
-        if (!isMounted) return;
+        if (!isMounted || isCancelled) return;
 
         if (!response.ok) {
           throw new Error("Failed to fetch NFTs");
@@ -368,68 +402,104 @@ export default function GalleryPage() {
         const data = await response.json();
         console.log("[Gallery] Fetched NFT data:", { total: data.total, nftsCount: data.nfts?.length, nfts: data.nfts });
         
-        if (isMounted) {
-          // Check if data.nfts exists and is an array
-          if (!data.nfts || !Array.isArray(data.nfts)) {
-            console.error("[Gallery] Invalid NFT data:", data);
+        if (!isMounted || isCancelled) return;
+
+        // Check if data.nfts exists and is an array
+        if (!data.nfts || !Array.isArray(data.nfts)) {
+          console.error("[Gallery] Invalid NFT data:", data);
+          if (isMounted && !isCancelled) {
             setError("Invalid NFT data received from server");
             setIsLoading(false);
-            return;
           }
+          return;
+        }
 
-          setTotal(data.total || 0);
-          setHasMore(data.hasMore || false);
+        if (!isMounted || isCancelled) return;
 
-          // If no NFTs, set empty array and return early
-          if (data.nfts.length === 0) {
-            console.log("[Gallery] No NFTs found in response");
+        setTotal(data.total || 0);
+        setHasMore(data.hasMore || false);
+
+        // If no NFTs, set empty array and return early
+        if (data.nfts.length === 0) {
+          console.log("[Gallery] No NFTs found in response");
+          if (isMounted && !isCancelled) {
             if (page === 1) {
               setNfts([]);
             }
             setIsLoading(false);
-            return;
           }
+          return;
+        }
 
-          // Fetch metadata for each NFT
-          const nftsWithMetadata = await Promise.all(
-            data.nfts.map(async (nft: NFT) => {
-              try {
-                const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(nft.tokenId)}`);
-                if (metadataResponse.ok) {
-                  const metadata = await metadataResponse.json();
-                  return {
-                    ...nft,
-                    image: metadata.image,
-                    name: metadata.name,
-                  };
-                } else {
-                  console.warn(`[Gallery] Metadata fetch failed for tokenId ${nft.tokenId}:`, metadataResponse.status);
-                }
-              } catch (error) {
-                console.warn(`[Gallery] Failed to fetch metadata for tokenId ${nft.tokenId}:`, error);
+        if (!isMounted || isCancelled) return;
+
+        // Fetch metadata for each NFT
+        const nftsWithMetadata = await Promise.all(
+          data.nfts.map(async (nft: NFT) => {
+            if (!isMounted || isCancelled) return nft;
+            
+            try {
+              const metadataResponse = await fetch(`/api/nft-metadata?tokenId=${encodeURIComponent(nft.tokenId)}`);
+              if (metadataResponse.ok) {
+                const metadata = await metadataResponse.json();
+                return {
+                  ...nft,
+                  image: metadata.image,
+                  name: metadata.name,
+                };
+              } else {
+                console.warn(`[Gallery] Metadata fetch failed for tokenId ${nft.tokenId}:`, metadataResponse.status);
               }
-              // Return NFT even if metadata fetch fails
-              return nft;
-            })
-          );
+            } catch (error) {
+              console.warn(`[Gallery] Failed to fetch metadata for tokenId ${nft.tokenId}:`, error);
+            }
+            // Return NFT even if metadata fetch fails
+            return nft;
+          })
+        );
 
-          console.log("[Gallery] NFTs with metadata:", { count: nftsWithMetadata.length, nfts: nftsWithMetadata });
+        if (!isMounted || isCancelled) return;
 
-          if (isMounted) {
-            if (page === 1) {
-              setNfts(nftsWithMetadata);
-            } else {
-              setNfts((prev) => [...prev, ...nftsWithMetadata]);
+        console.log("[Gallery] NFTs with metadata:", { count: nftsWithMetadata.length, nfts: nftsWithMetadata });
+        
+        // Filter valid NFTs before setting state (more lenient - only filter out completely invalid ones)
+        const validNFTs = nftsWithMetadata.filter((nft) => {
+          // Only filter out if NFT is completely null/undefined
+          if (!nft) {
+            console.warn("[Gallery] Filtered out null/undefined NFT");
+            return false;
+          }
+          // If tokenId exists, validate it; otherwise allow through (might have other data)
+          if (nft.tokenId !== undefined && nft.tokenId !== null) {
+            const tokenId = String(nft.tokenId).trim();
+            // Only filter if tokenId is empty or clearly invalid (not a number)
+            if (tokenId && !/^\d+$/.test(tokenId)) {
+              console.warn("[Gallery] Filtered out NFT with invalid tokenId format:", { tokenId, nft });
+              return false;
             }
           }
+          // Allow NFT through if it has at least some data
+          return true;
+        });
+        
+        console.log("[Gallery] Valid NFTs after filtering:", { 
+          count: validNFTs.length, 
+          validNFTs,
+          filteredOut: nftsWithMetadata.length - validNFTs.length
+        });
+
+        if (isMounted && !isCancelled) {
+          if (page === 1) {
+            setNfts(validNFTs);
+          } else {
+            setNfts((prev) => [...prev, ...validNFTs]);
+          }
+          setIsLoading(false);
         }
       } catch (err) {
         console.error("Error fetching NFTs:", err);
-        if (isMounted) {
+        if (isMounted && !isCancelled) {
           setError(err instanceof Error ? err.message : "Failed to load NFTs");
-        }
-      } finally {
-        if (isMounted) {
           setIsLoading(false);
         }
       }
@@ -439,6 +509,7 @@ export default function GalleryPage() {
 
     return () => {
       isMounted = false;
+      isCancelled = true;
     };
   }, [page, searchTerm]);
 
@@ -681,25 +752,59 @@ export default function GalleryPage() {
         {/* Search Bar - Mobile Optimized */}
         <form onSubmit={handleSearchSubmit} className="space_d mb-4 sm:mb-6">
           <div className="flex flex-col gap-2 w-full">
-            {/* Input field - Full width on mobile */}
-            <input
-              type="text"
-              placeholder="Search Token ID or FID..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                if (!e.target.value.trim()) {
-                  // Reset to show all NFTs when search is cleared
-                  setPage(1);
-                  setNfts([]);
-                  setError(null);
-                  setSearchResult(null);
-                  setSearchMetadata(null);
-                }
-              }}
-              className="w-full px-3 py-2 sm:px-4 sm:py-2 bg-white text-gray-900 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm sm:text-base min-h-[44px]"
-              disabled={isSearching}
-            />
+            {/* Input field with View Mode Toggle */}
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                placeholder="Search Token ID or FID..."
+                value={searchTerm}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setSearchTerm(newValue);
+                  if (!newValue.trim()) {
+                    // Reset to show all NFTs when search is cleared
+                    setPage(1);
+                    setNfts([]);
+                    setError(null);
+                    setSearchResult(null);
+                    setSearchMetadata(null);
+                    setIsSearching(false);
+                  }
+                }}
+                className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-white text-gray-900 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm sm:text-base min-h-[44px]"
+                disabled={isSearching}
+              />
+              
+              {/* View Mode Toggle - Always visible */}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 flex-shrink-0">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`px-2.5 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === "grid"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                  title="Grid View"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`px-2.5 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === "list"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                  title="List View"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
             
             {/* Buttons - Proper mobile sizing */}
             <div className="flex gap-2 w-full">
@@ -893,14 +998,151 @@ export default function GalleryPage() {
             </div>
           ) : (
             <>
-              {console.log("[Gallery] Rendering NFTs:", { count: nfts.length, nfts: nfts.map(n => ({ tokenId: n.tokenId, fid: n.fid })) })}
-              <div className="flex flex-col gap-4 items-center w-full">
-                {nfts.map((nft) => (
-                  <div key={nft.tokenId} className="w-full max-w-2xl space_b mx-auto">
-                    <NFTGalleryItem nft={nft} />
-                  </div>
-                ))}
-              </div>
+              {/* Grid View (Original) */}
+              {viewMode === "grid" && (
+                <div className="flex flex-col gap-4 items-center w-full">
+                  {nfts.map((nft, index) => {
+                      if (!nft) return null;
+                      const tokenId = String(nft.tokenId || '').trim();
+                      // Use index as fallback for key if tokenId is empty
+                      const key = tokenId || `nft-${index}`;
+                      return (
+                        <div key={key} className="w-full max-w-2xl space_b mx-auto">
+                          <NFTGalleryItem nft={nft} />
+                        </div>
+                      );
+                    })
+                    .filter(Boolean) // Remove null entries
+                  }
+                </div>
+              )}
+
+              {/* List View (Table) */}
+              {viewMode === "list" && (
+                <div className="w-full overflow-x-auto">
+                  {nfts.length === 0 ? (
+                    <div className="text-center py-8 bg-white rounded-lg shadow-sm">
+                      <p className="text-sm text-gray-600">
+                        {total > 0 
+                          ? `No valid NFTs to display (Total: ${total} NFTs found but filtered out)` 
+                          : "No NFTs found"}
+                      </p>
+                      {total > 0 && nfts.length === 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Check console for filtering details
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <table className="w-full border-collapse bg-white rounded-lg shadow-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[200px]">
+                            Item
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            FID
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            OWNER
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {nfts.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
+                              No NFTs to display
+                            </td>
+                          </tr>
+                        ) : (
+                          nfts.map((nft) => {
+                            if (!nft || !nft.tokenId) {
+                              console.warn("[Gallery List] Skipping invalid NFT:", nft);
+                              return null;
+                            }
+                            
+                            const tokenId = String(nft.tokenId).trim();
+                            if (!tokenId || !/^\d+$/.test(tokenId)) {
+                              console.warn("[Gallery List] Skipping NFT with invalid tokenId:", tokenId);
+                              return null;
+                            }
+                            
+                            return (
+                              <tr key={tokenId} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 relative">
+                                      <Image
+                                        src={`/api/nft-image/${tokenId}`}
+                                        alt={nft.name || `NFT #${tokenId}`}
+                                        width={64}
+                                        height={64}
+                                        className="w-full h-full object-cover"
+                                        unoptimized
+                                        onError={(e) => {
+                                          // Fallback to gradient if image fails to load
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                          const parent = target.parentElement;
+                                          if (parent && !parent.querySelector('.fallback-thumbnail')) {
+                                            const fallback = document.createElement('div');
+                                            fallback.className = 'fallback-thumbnail w-full h-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold';
+                                            fallback.textContent = `#${tokenId}`;
+                                            parent.appendChild(fallback);
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <Link
+                                        href={`/mint/${tokenId}`}
+                                        className="font-semibold text-gray-900 hover:text-blue-600 truncate block"
+                                      >
+                                        {nft.name || `test5Abstract #${tokenId}`}
+                                      </Link>
+                                      <div className="text-xs text-gray-500">Token ID: {tokenId}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {nft.fid ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                      {nft.fid}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600 font-mono">
+                                  {nft.owner ? (
+                                    <span className="text-xs" title={nft.owner}>
+                                      {nft.owner.slice(0, 6)}...{nft.owner.slice(-4)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Link
+                                    href={`/mint/${tokenId}`}
+                                    className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                                  >
+                                    View
+                                  </Link>
+                                </td>
+                              </tr>
+                            );
+                          }).filter(Boolean)
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
 
               {/* Load More Button - Mobile Optimized */}
               {hasMore && (

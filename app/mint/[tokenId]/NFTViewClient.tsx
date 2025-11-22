@@ -382,7 +382,7 @@ export default function NFTViewClient({ tokenId }: { tokenId: string }) {
               </div>
             )}
             
-            <div className="space_d vp_spacem bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
+            <div className="space_d bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-4">
               <p className="text-sm text-blue-800 font-medium mb-2">
                 💡 Share this NFT
               </p>
